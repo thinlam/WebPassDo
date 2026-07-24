@@ -1,0 +1,53 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Manrope:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Fraunces", Georgia, serif;
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --color-forest: #1f5f4a;
+  --color-forest-dark: #164536;
+  --color-ink: #1c2a24;
+  --color-muted: #5d6f66;
+  --color-sand: #eef3ef;
+  --color-sand-dark: #dde7e0;
+  --color-line: #cfdcd4;
+  --color-paper: #f7faf8;
+  --color-sunrise: #f3c96b;
+}
+
+:root {
+  color: var(--color-ink);
+  background:
+    radial-gradient(circle at top left, rgba(31, 95, 74, 0.08), transparent 40%),
+    radial-gradient(circle at top right, rgba(243, 201, 107, 0.18), transparent 35%),
+    linear-gradient(180deg, #f7faf8 0%, #eef3ef 100%);
+  font-family: var(--font-sans);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.bg-forest { background-color: var(--color-forest); }
+.bg-forest-dark { background-color: var(--color-forest-dark); }
+.hover\:bg-forest-dark:hover { background-color: var(--color-forest-dark); }
+.text-forest { color: var(--color-forest); }
+.text-ink { color: var(--color-ink); }
+.text-muted { color: var(--color-muted); }
+.bg-sand { background-color: var(--color-sand); }
+.bg-sand-dark { background-color: var(--color-sand-dark); }
+.hover\:bg-sand:hover { background-color: var(--color-sand); }
+.hover\:bg-sand-dark:hover { background-color: var(--color-sand-dark); }
+.border-line { border-color: var(--color-line); }
+.bg-paper { background-color: var(--color-paper); }
+.ring-forest\/30 { --tw-ring-color: rgb(31 95 74 / 0.3); }
+.bg-sunrise { background-color: var(--color-sunrise); }
