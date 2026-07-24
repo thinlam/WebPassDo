@@ -116,13 +116,7 @@ Get-ChildItem E:\PassDoBackup
 - Container DB phải **Running** trước khi backup (`docker compose up -d database`).
 - Password lấy từ `.env` (`MSSQL_SA_PASSWORD`); đừng dựa vào `$env:...` nếu chưa nạp `.env`.
 
-Nếu `sqlcmd` 18 không có, thử:
-
-```powershell
-docker exec passdo-database /opt/mssql-tools/bin/sqlcmd `
-  -S localhost -U sa -P "$env:MSSQL_SA_PASSWORD" `
-  -Q "BACKUP DATABASE [PassDoDb] TO DISK = N'/var/opt/mssql/backup/PassDoDb.bak' WITH INIT"
-```
+Image SQL 2022 hiện tại chỉ có **`/opt/mssql-tools18/bin/sqlcmd`** (kèm flag `-C`). Đường `/opt/mssql-tools/bin/sqlcmd` thường **không tồn tại** — nếu thấy lỗi `no such file or directory` thì đang gọi nhầm path cũ.
 
 Tên volume uploads nếu khác: `docker volume ls | findstr uploads`.
 
@@ -170,6 +164,147 @@ docker compose up --build -d
 **Sau restore:** mở http://localhost:3000 và đăng nhập bằng **tài khoản cũ** (user/order/sản phẩm phải giống máy cũ). Chỉ thấy `admin@passdo.local` seed → chưa restore đúng hoặc volume cũ chưa xóa.
 
 Khi ổn định có thể bật lại `APPLY_MIGRATIONS=true` nếu cần migrate schema mới (migration additive). Restore DB đã đủ schema thì để `false` cũng được.
+
+### 3) Đồng bộ 2 chiều (máy mới ↔ máy cũ) — quy trình + lệnh
+
+**Git chỉ đồng bộ code.** Data (user, đơn, chat, ảnh) phải **backup máy vừa làm xong → mang USB/Drive → restore máy kia**.
+
+Giả sử trên mỗi máy:
+
+| | Ví dụ path |
+|--|------------|
+| Code | `D:\WebPassDo` (hoặc `E:\WebPassDo`) |
+| Thư mục mang đi | `D:\PassDoBackup` (USB / ổ di động cũng được) |
+
+Đổi `D:\` cho đúng ổ máy bạn.
+
+---
+
+#### Bước A — Rời máy (backup data + đẩy code)
+
+Chạy trên **máy đang có data mới nhất** trước khi tắt / đổi máy:
+
+```powershell
+cd D:\WebPassDo
+
+# 1) Code lên remote (nếu đã commit)
+git status
+git push -u origin HEAD
+
+# 2) Nạp .env
+Get-Content .env | ForEach-Object {
+  if ($_ -match '^\s*#' -or $_ -notmatch '=') { return }
+  $k, $v = $_.Split('=', 2)
+  Set-Item -Path "Env:$k" -Value $v.Trim()
+}
+
+# 3) Thư mục backup (đặt tên theo ngày cho dễ)
+$stamp = Get-Date -Format "yyyy-MM-dd"
+$bakDir = "D:\PassDoBackup\$stamp"
+New-Item -ItemType Directory -Force -Path $bakDir | Out-Null
+
+docker compose up -d database
+Start-Sleep 25
+docker exec passdo-database mkdir -p /var/opt/mssql/backup
+
+docker exec passdo-database /opt/mssql-tools18/bin/sqlcmd `
+  -S localhost -U sa -P "$env:MSSQL_SA_PASSWORD" -C `
+  -Q "BACKUP DATABASE [PassDoDb] TO DISK = N'/var/opt/mssql/backup/PassDoDb.bak' WITH INIT"
+
+docker cp passdo-database:/var/opt/mssql/backup/PassDoDb.bak "$bakDir\PassDoDb.bak"
+
+docker run --rm `
+  -v webpassdo_uploads_data:/data `
+  -v ${bakDir}:/backup `
+  alpine tar czf /backup/uploads.tar.gz -C /data .
+
+Copy-Item .env "$bakDir\.env" -Force
+Get-ChildItem $bakDir
+```
+
+**Check:** `PassDoDb.bak` vài MB trở lên. Mang cả folder `$bakDir` (hoặc cả `D:\PassDoBackup`) sang máy kia.
+
+---
+
+#### Bước B — Tới máy kia (kéo code + restore data)
+
+Chạy trên **máy nhận**. Ví dụ ổ **E:** (đổi drive nếu khác):
+
+```powershell
+cd E:\WebPassDo
+
+# 1) Code mới nhất
+git pull
+
+# 2) Trỏ tới folder backup vừa mang sang (đổi ngày cho đúng)
+$bakDir = "E:\PassDoBackup\2026-07-25"   # <-- sửa ngày/path
+
+Copy-Item "$bakDir\.env" .\.env -Force
+
+Get-Content .env | ForEach-Object {
+  if ($_ -match '^\s*#' -or $_ -notmatch '=') { return }
+  $k, $v = $_.Split('=', 2)
+  Set-Item -Path "Env:$k" -Value $v.Trim()
+}
+
+# Tránh seed đè data restore
+(Get-Content .env) -replace 'APPLY_MIGRATIONS=true', 'APPLY_MIGRATIONS=false' | Set-Content .env
+
+# Nếu DB máy này lệch / seed cũ → xóa volume rồi restore sạch (CẨN THẬN: mất data local chưa backup)
+# docker compose down -v
+
+docker compose up -d database
+Start-Sleep 30
+
+docker exec passdo-database mkdir -p /var/opt/mssql/backup
+docker cp "$bakDir\PassDoDb.bak" passdo-database:/var/opt/mssql/backup/PassDoDb.bak
+
+docker exec passdo-database /opt/mssql-tools18/bin/sqlcmd `
+  -S localhost -U sa -P "$env:MSSQL_SA_PASSWORD" -C `
+  -Q "RESTORE DATABASE [PassDoDb] FROM DISK = N'/var/opt/mssql/backup/PassDoDb.bak' WITH REPLACE"
+
+docker compose up -d backend
+Start-Sleep 15
+
+docker run --rm `
+  -v webpassdo_uploads_data:/data `
+  -v ${bakDir}:/backup `
+  alpine sh -c "tar xzf /backup/uploads.tar.gz -C /data"
+
+docker compose up --build -d
+```
+
+Mở http://localhost:3000 → login **user đã có trên máy vừa backup**. Thấy sản phẩm/đơn giống nhau = OK.
+
+
+---
+
+#### Ví dụ lịch làm việc
+
+```text
+Thứ 2–4: làm trên Máy mới (D:)
+  → hết ngày / đổi máy: chạy Bước A (backup + git push)
+
+Thứ 5: về Máy cũ (E:)
+  → chạy Bước B (git pull + restore folder backup mới nhất)
+  → làm tiếp…
+  → trước khi tắt: lại Bước A
+
+Thứ 6: lại Máy mới
+  → Bước B với bản backup vừa lấy từ Máy cũ
+```
+
+Luôn coi **máy vừa backup gần nhất** là nguồn sự thật của data.
+
+---
+
+#### Không làm
+
+- Chỉ `git pull` rồi mong thấy đơn/sản phẩm mới → **không có**.
+- Restore `.bak` cũ hơn lên máy đã có data mới → **mất** data mới (`WITH REPLACE`).
+- Commit `.bak` / `.env` / uploads vào git → để ngoài repo (USB / Drive).
+
+**Hai máy dùng song song lâu dài:** nên 1 SQL/cloud chung; Docker local + bak chỉ hợp khi **một máy làm chính rồi chuyển**.
 
 ## Chạy local (không Docker)
 
