@@ -36,7 +36,6 @@ public class GetMyPurchasesQueryHandler : IRequestHandler<GetMyPurchasesQuery, P
             .Include(x => x.Items)
             .Include(x => x.Buyer)
             .Include(x => x.Seller)
-            .Include(x => x.Shipper)
             .Where(x => x.BuyerId == _currentUser.UserId);
 
         if (request.Status.HasValue)

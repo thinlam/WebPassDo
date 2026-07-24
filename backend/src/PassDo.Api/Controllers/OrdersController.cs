@@ -9,7 +9,6 @@ using PassDo.Application.Orders.Commands.PreviewOrder;
 using PassDo.Application.Orders.Queries.GetMyPurchases;
 using PassDo.Application.Orders.Queries.GetMySales;
 using PassDo.Application.Orders.Queries.GetOrderById;
-using PassDo.Application.Orders.Queries.GetShipperOrders;
 using PassDo.Domain.Enums;
 
 namespace PassDo.Api.Controllers;
@@ -71,18 +70,6 @@ public class OrdersController : ControllerBase
         return Ok(ApiResponse<object>.Ok(result));
     }
 
-    [HttpGet("shipper")]
-    [Authorize(Policy = "ShipperOnly")]
-    public async Task<ActionResult<ApiResponse<object>>> GetShipperOrders(
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
-        [FromQuery] OrderStatus? status = null,
-        [FromQuery] bool availableOnly = false)
-    {
-        var result = await _mediator.Send(new GetShipperOrdersQuery(page, pageSize, status, availableOnly));
-        return Ok(ApiResponse<object>.Ok(result));
-    }
-
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<ApiResponse<object>>> GetById(Guid id)
     {
@@ -132,27 +119,20 @@ public class OrdersController : ControllerBase
         return Ok(ApiResponse<object>.Ok(result, "Order marked as prepared."));
     }
 
-    [HttpPost("{id:guid}/assign-shipper")]
-    public async Task<ActionResult<ApiResponse<object>>> AssignShipper(Guid id, [FromBody] AssignShipperRequest request)
+    [HttpPost("{id:guid}/hand-over")]
+    public async Task<ActionResult<ApiResponse<object>>> HandOver(Guid id, [FromBody] HandOverRequest request)
     {
-        var result = await _mediator.Send(new AssignShipperCommand(id, request.ShipperId));
-        return Ok(ApiResponse<object>.Ok(result, "Shipper assigned."));
-    }
-
-    [HttpPost("{id:guid}/claim")]
-    [Authorize(Policy = "ShipperOnly")]
-    public async Task<ActionResult<ApiResponse<object>>> Claim(Guid id)
-    {
-        var result = await _mediator.Send(new ClaimOrderCommand(id));
-        return Ok(ApiResponse<object>.Ok(result, "Order claimed."));
-    }
-
-    [HttpPost("{id:guid}/confirm-pickup")]
-    [Authorize(Policy = "ShipperOnly")]
-    public async Task<ActionResult<ApiResponse<object>>> ConfirmPickup(Guid id, [FromBody] ConfirmPickupRequest? request)
-    {
-        var result = await _mediator.Send(new ConfirmPickupCommand(id, request?.TrackingCode));
-        return Ok(ApiResponse<object>.Ok(result, "Pickup confirmed."));
+        var result = await _mediator.Send(new HandOverToCourierCommand(
+            id,
+            request.DeliveryPersonName,
+            request.DeliveryPersonPhone,
+            request.DeliveryCompany,
+            request.VehicleNumber,
+            request.TrackingCode,
+            request.DeliveryNote,
+            request.EstimatedDeliveryFrom,
+            request.EstimatedDeliveryTo));
+        return Ok(ApiResponse<object>.Ok(result, "Handed over to courier."));
     }
 
     [HttpPost("{id:guid}/confirm-delivered")]
@@ -163,7 +143,6 @@ public class OrdersController : ControllerBase
     }
 
     [HttpPost("{id:guid}/fail-delivery")]
-    [Authorize(Policy = "ShipperOnly")]
     public async Task<ActionResult<ApiResponse<object>>> FailDelivery(Guid id, [FromBody] ReasonRequest request)
     {
         var result = await _mediator.Send(new FailDeliveryCommand(id, request.Reason));

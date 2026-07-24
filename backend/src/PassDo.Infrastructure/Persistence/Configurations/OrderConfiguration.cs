@@ -60,16 +60,10 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
             .HasForeignKey(x => x.SellerId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne(x => x.Shipper)
-            .WithMany(x => x.ShipmentsAssigned)
-            .HasForeignKey(x => x.ShipperId)
-            .OnDelete(DeleteBehavior.Restrict);
-
         builder.HasIndex(x => x.OrderCode).IsUnique();
         builder.HasIndex(x => x.BuyerId);
         builder.HasIndex(x => x.SellerId);
         builder.HasIndex(x => x.ProductId);
-        builder.HasIndex(x => x.ShipperId);
         builder.HasIndex(x => x.Status);
 
         builder.HasQueryFilter(x => !x.IsDeleted);

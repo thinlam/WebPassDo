@@ -1,4 +1,5 @@
 using Microsoft.OpenApi.Models;
+using PassDo.Api.Hubs;
 using PassDo.Api.Middleware;
 using PassDo.Application;
 using PassDo.Infrastructure;
@@ -17,7 +18,11 @@ builder.Services.AddControllers()
     {
         options.JsonSerializerOptions.Converters.Add(
             new System.Text.Json.Serialization.JsonStringEnumConverter());
+        options.JsonSerializerOptions.Converters.Add(new PassDo.Api.Serialization.UtcDateTimeJsonConverter());
+        options.JsonSerializerOptions.Converters.Add(new PassDo.Api.Serialization.UtcNullableDateTimeJsonConverter());
     });
+
+builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -65,7 +70,8 @@ builder.Services.AddCors(options =>
     {
         policy.WithOrigins(corsOrigins)
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
 
@@ -103,6 +109,7 @@ app.UseCors("Frontend");
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.MapHub<PresenceHub>("/hubs/presence");
 app.MapControllers();
 app.MapHealthChecks("/health");
 

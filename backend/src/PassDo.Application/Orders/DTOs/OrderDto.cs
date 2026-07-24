@@ -24,8 +24,6 @@ public class OrderListItemDto
     public string? BuyerName { get; set; }
     public Guid SellerId { get; set; }
     public string? SellerName { get; set; }
-    public Guid? ShipperId { get; set; }
-    public string? ShipperName { get; set; }
 }
 
 public class OrderDetailDto : OrderListItemDto
@@ -41,7 +39,6 @@ public class OrderDetailDto : OrderListItemDto
 
     public OrderPartyDto? Seller { get; set; }
     public OrderPartyDto? Buyer { get; set; }
-    public OrderPartyDto? Shipper { get; set; }
     public OrderAddressDto? ShippingAddress { get; set; }
     public OrderAddressDto? PickupAddress { get; set; }
     public OrderPaymentDto? Payment { get; set; }
@@ -98,15 +95,17 @@ public class OrderShipmentDto
     public string SenderCity { get; set; } = string.Empty;
     public string ReceiverCity { get; set; } = string.Empty;
     public decimal ShippingFee { get; set; }
+    public bool IsInnerCity { get; set; }
     public DateTime? EstimatedDeliveryFrom { get; set; }
     public DateTime? EstimatedDeliveryTo { get; set; }
     public DateTime? SellerHandedOverAt { get; set; }
-    public DateTime? ShipperReceivedAt { get; set; }
+    public DateTime? PickedUpAt { get; set; }
     public DateTime? DeliveredAt { get; set; }
     public string? DeliveryNote { get; set; }
-    public Guid? ShipperId { get; set; }
-    public string? ShipperName { get; set; }
-    public string? ShipperPhone { get; set; }
+    public string? DeliveryPersonName { get; set; }
+    public string? DeliveryPersonPhone { get; set; }
+    public string? DeliveryCompany { get; set; }
+    public string? VehicleNumber { get; set; }
 }
 
 public class OrderBankSnapshotDto
@@ -154,7 +153,8 @@ public static class OrderStatusGroups
     [
         OrderStatus.AwaitingPayment,
         OrderStatus.PendingConfirmation,
-        OrderStatus.AwaitingPickup,
+        OrderStatus.AwaitingPreparation,
+        OrderStatus.AwaitingHandover,
         OrderStatus.Shipping
     ];
 }

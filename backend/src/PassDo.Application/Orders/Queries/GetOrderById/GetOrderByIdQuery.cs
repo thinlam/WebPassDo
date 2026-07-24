@@ -36,14 +36,12 @@ public class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery, Order
             .Include(x => x.StatusHistories).ThenInclude(x => x.ChangedByUser)
             .Include(x => x.Buyer)
             .Include(x => x.Seller)
-            .Include(x => x.Shipper)
             .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken)
             ?? throw new NotFoundException("Order", request.Id);
 
         var isAdmin = string.Equals(_currentUser.Role, Roles.Admin, StringComparison.OrdinalIgnoreCase);
         var isParticipant = order.BuyerId == _currentUser.UserId
             || order.SellerId == _currentUser.UserId
-            || order.ShipperId == _currentUser.UserId
             || isAdmin;
 
         if (!isParticipant)

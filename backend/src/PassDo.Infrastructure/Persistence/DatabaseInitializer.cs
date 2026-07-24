@@ -59,24 +59,6 @@ public static class DatabaseInitializer
             logger.LogInformation("Seeded admin user admin@passdo.local");
         }
 
-        if (!await dbContext.Users.IgnoreQueryFilters().AnyAsync(u => u.Role == UserRole.Shipper, cancellationToken))
-        {
-            var shipper = new User
-            {
-                Id = Guid.Parse("22222222-2222-2222-2222-222222222222"),
-                Email = "shipper@passdo.local",
-                FullName = "PassDo Shipper",
-                PhoneNumber = "0900000002",
-                PasswordHash = passwordHasher.Hash("Shipper@123456"),
-                Role = UserRole.Shipper,
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            dbContext.Users.Add(shipper);
-            logger.LogInformation("Seeded shipper user shipper@passdo.local");
-        }
-
         if (!await dbContext.Categories.IgnoreQueryFilters().AnyAsync(cancellationToken))
         {
             var categories = new[]

@@ -33,6 +33,8 @@ public class PassDoDbContext : DbContext, IApplicationDbContext
     public DbSet<UserAddress> UserAddresses => Set<UserAddress>();
     public DbSet<UserBankAccount> UserBankAccounts => Set<UserBankAccount>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<Conversation> Conversations => Set<Conversation>();
+    public DbSet<Message> Messages => Set<Message>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

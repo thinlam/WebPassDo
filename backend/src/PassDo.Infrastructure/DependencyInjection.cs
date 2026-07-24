@@ -10,6 +10,7 @@ using PassDo.Domain.Constants;
 using PassDo.Infrastructure.Health;
 using PassDo.Infrastructure.Identity;
 using PassDo.Infrastructure.Options;
+using PassDo.Infrastructure.Presence;
 using PassDo.Infrastructure.Persistence;
 using PassDo.Infrastructure.Services;
 using PassDo.Infrastructure.Storage;
@@ -33,6 +34,7 @@ public static class DependencyInjection
 
         services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<PassDoDbContext>());
         services.AddScoped<ICurrentUserService, CurrentUserService>();
+        services.AddScoped<IPresenceTracker, PresenceTracker>();
         services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddScoped<IPasswordHasher, PasswordHasherService>();
@@ -65,12 +67,25 @@ public static class DependencyInjection
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.Key)),
                     ClockSkew = TimeSpan.FromMinutes(1)
                 };
+
+                options.Events = new JwtBearerEvents
+                {
+                    OnMessageReceived = context =>
+                    {
+                        var accessToken = context.Request.Query["access_token"];
+                        var path = context.HttpContext.Request.Path;
+                        if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                        {
+                            context.Token = accessToken;
+                        }
+                        return Task.CompletedTask;
+                    }
+                };
             });
 
         services.AddAuthorization(options =>
         {
             options.AddPolicy("AdminOnly", policy => policy.RequireRole(Roles.Admin));
-            options.AddPolicy("ShipperOnly", policy => policy.RequireRole(Roles.Shipper, Roles.Admin));
         });
 
         services.AddHealthChecks()

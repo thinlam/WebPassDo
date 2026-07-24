@@ -133,7 +133,12 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
         var seller = await _context.Users.FirstAsync(x => x.Id == product.SellerId, cancellationToken);
 
         var productTotal = product.SellingPrice * request.Quantity;
-        var shippingFee = _shippingCalculator.GetShippingFee(request.DeliverySpeed);
+        var utcNow = _dateTimeProvider.UtcNow;
+        var shippingQuote = _shippingCalculator.CalculateForAddresses(
+            pickup.Province, pickup.District ?? string.Empty,
+            shippingAddress.Province, shippingAddress.District ?? string.Empty,
+            request.DeliverySpeed, utcNow);
+        var shippingFee = shippingQuote.ShippingFee;
         var grandTotal = productTotal + shippingFee;
 
         var initialStatus = request.PaymentMethod == PaymentMethod.BankTransfer
@@ -156,8 +161,6 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
             .Select(x => x.Url)
             .FirstOrDefault();
 
-        var etaPreview = _shippingCalculator.CalculateEta(request.DeliverySpeed, _dateTimeProvider.UtcNow);
-
         var order = new Order
         {
             OrderCode = orderCode,
@@ -173,8 +176,8 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
             PaymentStatus = paymentStatus,
             DeliverySpeed = request.DeliverySpeed,
             Note = request.Note?.Trim(),
-            EstimatedDeliveryFrom = etaPreview.From,
-            EstimatedDeliveryTo = etaPreview.To,
+            EstimatedDeliveryFrom = shippingQuote.EstimatedDeliveryFrom,
+            EstimatedDeliveryTo = shippingQuote.EstimatedDeliveryTo,
             ShippingRecipientName = shippingAddress.RecipientName,
             ShippingPhone = shippingAddress.PhoneNumber,
             ShippingProvince = shippingAddress.Province,
@@ -218,11 +221,14 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
         {
             DeliverySpeed = request.DeliverySpeed,
             SenderCity = pickup.Province,
+            SenderDistrict = pickup.District,
             ReceiverCity = shippingAddress.Province,
+            ReceiverDistrict = shippingAddress.District,
             ShippingFee = shippingFee,
-            EstimatedDeliveryFrom = etaPreview.From,
-            EstimatedDeliveryTo = etaPreview.To,
-            CarrierName = "PassDo Shipper"
+            IsInnerCity = shippingQuote.IsInnerCity,
+            EstimatedDeliveryFrom = shippingQuote.EstimatedDeliveryFrom,
+            EstimatedDeliveryTo = shippingQuote.EstimatedDeliveryTo,
+            CarrierName = "PassDo"
         };
 
         OrderHelpers.AddHistory(
@@ -257,7 +263,6 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
             .Include(x => x.StatusHistories).ThenInclude(x => x.ChangedByUser)
             .Include(x => x.Buyer)
             .Include(x => x.Seller)
-            .Include(x => x.Shipper)
             .Include(x => x.Product).ThenInclude(x => x.Images)
             .FirstAsync(x => x.Id == id, cancellationToken);
 }

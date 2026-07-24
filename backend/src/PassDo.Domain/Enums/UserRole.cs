@@ -3,6 +3,5 @@ namespace PassDo.Domain.Enums;
 public enum UserRole
 {
     User = 0,
-    Admin = 1,
-    Shipper = 2
+    Admin = 1
 }

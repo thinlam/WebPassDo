@@ -12,12 +12,14 @@ import { PurchasesPage, SalesPage } from '../pages/OrdersPages'
 import { OrderDetailPage } from '../pages/OrderDetailPage'
 import { CheckoutPage } from '../pages/CheckoutPage'
 import { SettingsPage } from '../pages/SettingsPage'
-import { ShipperOrdersPage } from '../pages/ShipperOrdersPage'
 import { ProfilePage } from '../pages/ProfilePage'
 import { AdminCategoriesPage } from '../pages/AdminCategoriesPage'
+import { AccountSecurityPage } from '../pages/AccountSecurityPage'
+import { SupportPage } from '../pages/SupportPage'
+import { MessagesPage } from '../pages/MessagesPage'
+import { ConversationPage } from '../pages/ConversationPage'
 import { ProtectedRoute } from './ProtectedRoute'
 import { AdminRoute } from './AdminRoute'
-import { ShipperRoute } from './ShipperRoute'
 
 export function AppRoutes() {
   return (
@@ -101,18 +103,42 @@ export function AppRoutes() {
           }
         />
         <Route
-          path="shipper/orders"
-          element={
-            <ShipperRoute>
-              <ShipperOrdersPage />
-            </ShipperRoute>
-          }
-        />
-        <Route
           path="profile"
           element={
             <ProtectedRoute>
               <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="messages"
+          element={
+            <ProtectedRoute>
+              <MessagesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="messages/:conversationId"
+          element={
+            <ProtectedRoute>
+              <ConversationPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="account/security"
+          element={
+            <ProtectedRoute>
+              <AccountSecurityPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="support"
+          element={
+            <ProtectedRoute>
+              <SupportPage />
             </ProtectedRoute>
           }
         />

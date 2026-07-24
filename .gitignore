@@ -26,3 +26,6 @@ frontend/.env.local
 
 # Docker
 *.log
+
+# Agent scratch (briefs/reports); keep docs/superpowers specs & plans
+.superpowers/
