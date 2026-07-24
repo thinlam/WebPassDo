@@ -60,7 +60,6 @@ public class Order : BaseEntity
     public Product Product { get; set; } = null!;
     public User Buyer { get; set; } = null!;
     public User Seller { get; set; } = null!;
-    public User? Shipper { get; set; }
     public ICollection<OrderItem> Items { get; set; } = new List<OrderItem>();
     public OrderPayment? Payment { get; set; }
     public OrderShipment? Shipment { get; set; }

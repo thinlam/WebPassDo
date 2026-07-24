@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PassDo.Api.Contracts.Users;
 using PassDo.Application.Common.Models;
+using PassDo.Application.Presence;
 using PassDo.Application.Users.Commands.UpdateCurrentUser;
 using PassDo.Application.Users.Queries.GetCurrentUser;
 
@@ -36,5 +37,13 @@ public class UsersController : ControllerBase
             request.AvatarUrl));
 
         return Ok(ApiResponse<object>.Ok(result, "Profile updated."));
+    }
+
+    [AllowAnonymous]
+    [HttpGet("{id:guid}/presence")]
+    public async Task<ActionResult<ApiResponse<PresenceDto>>> GetPresence(Guid id)
+    {
+        var result = await _mediator.Send(new GetUserPresenceQuery(id));
+        return Ok(ApiResponse<PresenceDto>.Ok(result));
     }
 }

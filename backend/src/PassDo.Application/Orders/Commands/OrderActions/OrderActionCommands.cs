@@ -19,9 +19,16 @@ public record ConfirmOrderCommand(Guid OrderId, string? Note) : IRequest<OrderDe
 public record RejectOrderCommand(Guid OrderId, string Reason) : IRequest<OrderDetailDto>;
 public record CancelOrderCommand(Guid OrderId, string? Reason) : IRequest<OrderDetailDto>;
 public record MarkPreparedCommand(Guid OrderId) : IRequest<OrderDetailDto>;
-public record ClaimOrderCommand(Guid OrderId) : IRequest<OrderDetailDto>;
-public record AssignShipperCommand(Guid OrderId, Guid ShipperId) : IRequest<OrderDetailDto>;
-public record ConfirmPickupCommand(Guid OrderId, string? TrackingCode) : IRequest<OrderDetailDto>;
+public record HandOverToCourierCommand(
+    Guid OrderId,
+    string DeliveryPersonName,
+    string DeliveryPersonPhone,
+    string DeliveryCompany,
+    string? VehicleNumber,
+    string? TrackingCode,
+    string? DeliveryNote,
+    DateTime? EstimatedDeliveryFrom,
+    DateTime? EstimatedDeliveryTo) : IRequest<OrderDetailDto>;
 public record ConfirmDeliveredCommand(Guid OrderId) : IRequest<OrderDetailDto>;
 public record FailDeliveryCommand(Guid OrderId, string Reason) : IRequest<OrderDetailDto>;
 
@@ -40,6 +47,19 @@ public class UploadPaymentProofCommandValidator : AbstractValidator<UploadPaymen
     public UploadPaymentProofCommandValidator() => RuleFor(x => x.ProofImageUrl).NotEmpty().MaximumLength(500);
 }
 
+public class HandOverToCourierCommandValidator : AbstractValidator<HandOverToCourierCommand>
+{
+    public HandOverToCourierCommandValidator()
+    {
+        RuleFor(x => x.DeliveryPersonName).NotEmpty().MaximumLength(200);
+        RuleFor(x => x.DeliveryPersonPhone).NotEmpty().MaximumLength(30);
+        RuleFor(x => x.DeliveryCompany).NotEmpty().MaximumLength(150);
+        RuleFor(x => x.VehicleNumber).MaximumLength(50).When(x => x.VehicleNumber is not null);
+        RuleFor(x => x.TrackingCode).MaximumLength(100).When(x => x.TrackingCode is not null);
+        RuleFor(x => x.DeliveryNote).MaximumLength(1000).When(x => x.DeliveryNote is not null);
+    }
+}
+
 public class OrderActionHandler :
     IRequestHandler<ConfirmPaymentCommand, OrderDetailDto>,
     IRequestHandler<UploadPaymentProofCommand, OrderDetailDto>,
@@ -47,9 +67,7 @@ public class OrderActionHandler :
     IRequestHandler<RejectOrderCommand, OrderDetailDto>,
     IRequestHandler<CancelOrderCommand, OrderDetailDto>,
     IRequestHandler<MarkPreparedCommand, OrderDetailDto>,
-    IRequestHandler<ClaimOrderCommand, OrderDetailDto>,
-    IRequestHandler<AssignShipperCommand, OrderDetailDto>,
-    IRequestHandler<ConfirmPickupCommand, OrderDetailDto>,
+    IRequestHandler<HandOverToCourierCommand, OrderDetailDto>,
     IRequestHandler<ConfirmDeliveredCommand, OrderDetailDto>,
     IRequestHandler<FailDeliveryCommand, OrderDetailDto>
 {
@@ -89,6 +107,7 @@ public class OrderActionHandler :
             }
 
             ChangeStatus(order, OrderStatus.PendingConfirmation, "Đã xác nhận thanh toán chuyển khoản.");
+            await Task.CompletedTask;
         }, ct);
 
     public Task<OrderDetailDto> Handle(UploadPaymentProofCommand request, CancellationToken ct)
@@ -122,7 +141,7 @@ public class OrderActionHandler :
             }
 
             order.ConfirmedAt = _clock.UtcNow;
-            ChangeStatus(order, OrderStatus.AwaitingPickup, request.Note ?? "Đơn hàng đã được xác nhận.");
+            ChangeStatus(order, OrderStatus.AwaitingPreparation, request.Note ?? "Đơn hàng đã được xác nhận.");
             return Task.CompletedTask;
         }, ct);
 
@@ -160,116 +179,74 @@ public class OrderActionHandler :
         => Transition(request.OrderId, order =>
         {
             EnsureSellerOrAdmin(order);
-            if (order.Status != OrderStatus.AwaitingPickup)
+            if (order.Status != OrderStatus.AwaitingPreparation)
             {
-                throw new ConflictException("Order is not awaiting pickup.");
+                throw new ConflictException("Order is not awaiting preparation.");
             }
 
             order.PreparedAt = _clock.UtcNow;
             if (order.Shipment is not null)
             {
-                order.Shipment.SellerHandedOverAt = _clock.UtcNow;
                 order.Shipment.PreparedByUserId = _currentUser.UserId;
             }
 
-            AppendHistory(order, order.Status, order.Status, "Người bán đã chuẩn bị hàng.");
+            ChangeStatus(order, OrderStatus.AwaitingHandover, "Người bán đã chuẩn bị hàng.");
             return Task.CompletedTask;
         }, ct);
 
-    public Task<OrderDetailDto> Handle(ClaimOrderCommand request, CancellationToken ct)
-        => Transition(request.OrderId, async order =>
-        {
-            EnsureShipperOrAdmin();
-            if (order.Status != OrderStatus.AwaitingPickup)
-            {
-                throw new ConflictException("Chỉ nhận được đơn đang ở trạng thái Chờ lấy hàng.");
-            }
-
-            if (order.PreparedAt is null)
-            {
-                throw new ConflictException(
-                    "Người bán chưa bấm 'Đã chuẩn bị hàng'. Hãy chuẩn bị hàng trước khi nhận đơn giao.");
-            }
-
-            if (order.ShipperId is not null && order.ShipperId != _currentUser.UserId && !IsAdmin())
-            {
-                throw new ConflictException("Đơn đã được gán cho shipper khác.");
-            }
-
-            // Shipper tự nhận; Admin có thể tự nhận để xử lý (hoặc dùng assign-shipper).
-            var shipperId = _currentUser.UserId!.Value;
-
-            order.ShipperId = shipperId;
-            if (order.Shipment is not null)
-            {
-                order.Shipment.ShipperId = shipperId;
-                order.Shipment.CarrierName ??= IsAdmin() ? "PassDo Admin" : null;
-            }
-
-            AppendHistory(order, order.Status, order.Status, "Shipper đã nhận phân công đơn hàng.");
-            await Task.CompletedTask;
-        }, ct);
-
-    public Task<OrderDetailDto> Handle(AssignShipperCommand request, CancellationToken ct)
-        => Transition(request.OrderId, async order =>
-        {
-            if (!IsAdmin() && order.SellerId != _currentUser.UserId)
-            {
-                throw new ForbiddenException("Only seller or admin can assign shipper.");
-            }
-
-            if (order.Status != OrderStatus.AwaitingPickup)
-            {
-                throw new ConflictException("Shipper can only be assigned for awaiting-pickup orders.");
-            }
-
-            var shipper = await _context.Users.FirstOrDefaultAsync(x => x.Id == request.ShipperId && x.Role == UserRole.Shipper, ct)
-                ?? throw new NotFoundException("Shipper", request.ShipperId);
-
-            order.ShipperId = shipper.Id;
-            if (order.Shipment is not null)
-            {
-                order.Shipment.ShipperId = shipper.Id;
-                order.Shipment.CarrierName = shipper.FullName;
-            }
-
-            AppendHistory(order, order.Status, order.Status, $"Đã gán shipper {shipper.FullName}.");
-        }, ct);
-
-    public Task<OrderDetailDto> Handle(ConfirmPickupCommand request, CancellationToken ct)
+    public Task<OrderDetailDto> Handle(HandOverToCourierCommand request, CancellationToken ct)
         => Transition(request.OrderId, order =>
         {
-            EnsureAssignedShipperOrAdmin(order);
-            if (order.Status != OrderStatus.AwaitingPickup)
+            EnsureSellerOrAdmin(order);
+            if (order.Status != OrderStatus.AwaitingHandover)
             {
-                throw new ConflictException("Order is not awaiting pickup.");
-            }
-
-            if (order.ShipperId is null)
-            {
-                order.ShipperId = _currentUser.UserId;
+                throw new ConflictException("Order is not awaiting handover to courier.");
             }
 
             var now = _clock.UtcNow;
-            var eta = _shipping.CalculateEta(order.DeliverySpeed, now);
-            order.PickedUpAt = now;
-            order.EstimatedDeliveryFrom = eta.From;
-            order.EstimatedDeliveryTo = eta.To;
 
             if (order.Shipment is not null)
             {
-                order.Shipment.ShipperId = order.ShipperId;
-                order.Shipment.ShipperReceivedAt = now;
-                order.Shipment.EstimatedDeliveryFrom = eta.From;
-                order.Shipment.EstimatedDeliveryTo = eta.To;
-                order.Shipment.PickedUpConfirmedByUserId = _currentUser.UserId;
-                if (!string.IsNullOrWhiteSpace(request.TrackingCode))
+                order.Shipment.DeliveryPersonName = request.DeliveryPersonName;
+                order.Shipment.DeliveryPersonPhone = request.DeliveryPersonPhone;
+                order.Shipment.DeliveryCompany = request.DeliveryCompany;
+                order.Shipment.VehicleNumber = request.VehicleNumber;
+                order.Shipment.TrackingCode = request.TrackingCode;
+                order.Shipment.DeliveryNote = request.DeliveryNote;
+                order.Shipment.PickedUpAt = now;
+                order.Shipment.SellerHandedOverAt = now;
+                order.Shipment.HandedOverByUserId = _currentUser.UserId;
+                order.Shipment.CarrierName = request.DeliveryCompany;
+            }
+
+            order.PickedUpAt = now;
+
+            if (request.EstimatedDeliveryFrom.HasValue && request.EstimatedDeliveryTo.HasValue)
+            {
+                order.EstimatedDeliveryFrom = request.EstimatedDeliveryFrom.Value;
+                order.EstimatedDeliveryTo = request.EstimatedDeliveryTo.Value;
+                if (order.Shipment is not null)
                 {
-                    order.Shipment.TrackingCode = request.TrackingCode.Trim();
+                    order.Shipment.EstimatedDeliveryFrom = request.EstimatedDeliveryFrom.Value;
+                    order.Shipment.EstimatedDeliveryTo = request.EstimatedDeliveryTo.Value;
+                }
+            }
+            else
+            {
+                var quote = _shipping.CalculateForAddresses(
+                    order.PickupProvince, order.PickupDistrict,
+                    order.ShippingProvince, order.ShippingDistrict,
+                    order.DeliverySpeed, now);
+                order.EstimatedDeliveryFrom = quote.EstimatedDeliveryFrom;
+                order.EstimatedDeliveryTo = quote.EstimatedDeliveryTo;
+                if (order.Shipment is not null)
+                {
+                    order.Shipment.EstimatedDeliveryFrom = quote.EstimatedDeliveryFrom;
+                    order.Shipment.EstimatedDeliveryTo = quote.EstimatedDeliveryTo;
                 }
             }
 
-            ChangeStatus(order, OrderStatus.Shipping, "Shipper đã nhận hàng từ người bán.");
+            ChangeStatus(order, OrderStatus.Shipping, $"Đã bàn giao cho {request.DeliveryCompany} ({request.DeliveryPersonName}).");
             return Task.CompletedTask;
         }, ct);
 
@@ -277,9 +254,10 @@ public class OrderActionHandler :
         => Transition(request.OrderId, async order =>
         {
             var isBuyer = order.BuyerId == _currentUser.UserId;
-            if (!isBuyer)
+            var isSeller = order.SellerId == _currentUser.UserId;
+            if (!isBuyer && !isSeller && !IsAdmin())
             {
-                EnsureAssignedShipperOrAdmin(order);
+                throw new ForbiddenException("Only buyer, seller, or admin can confirm delivery.");
             }
 
             if (order.Status != OrderStatus.Shipping)
@@ -318,7 +296,7 @@ public class OrderActionHandler :
     public Task<OrderDetailDto> Handle(FailDeliveryCommand request, CancellationToken ct)
         => Transition(request.OrderId, order =>
         {
-            EnsureAssignedShipperOrAdmin(order);
+            EnsureSellerOrAdmin(order);
             if (order.Status != OrderStatus.Shipping)
             {
                 throw new ConflictException("Only shipping orders can fail delivery.");
@@ -336,9 +314,6 @@ public class OrderActionHandler :
             throw new UnauthorizedException();
         }
 
-        // Avoid Include of required principals (Buyer/Seller/Product via Items):
-        // EF treats unloaded required navigations as severed and issues DELETE/UPDATE
-        // that hit 0 rows under soft-delete filters → DbUpdateConcurrencyException.
         var order = await _context.Orders
             .Include(x => x.Payment)
             .Include(x => x.Shipment)
@@ -359,7 +334,6 @@ public class OrderActionHandler :
             .Include(x => x.StatusHistories).ThenInclude(x => x.ChangedByUser)
             .Include(x => x.Buyer)
             .Include(x => x.Seller)
-            .Include(x => x.Shipper)
             .FirstAsync(x => x.Id == orderId, ct);
 
         return OrderMapper.ToDetailDto(loaded, includeSensitiveContact: true, includeFullBankAccount: IsParticipant(loaded));
@@ -397,13 +371,11 @@ public class OrderActionHandler :
             SenderCity = string.IsNullOrWhiteSpace(order.PickupProvince) ? "N/A" : order.PickupProvince,
             ReceiverCity = string.IsNullOrWhiteSpace(order.ShippingProvince) ? "N/A" : order.ShippingProvince,
             ShippingFee = order.ShippingFee,
-            CarrierName = "PassDo Shipper",
+            CarrierName = "PassDo",
             EstimatedDeliveryFrom = order.EstimatedDeliveryFrom,
             EstimatedDeliveryTo = order.EstimatedDeliveryTo
         };
 
-        // Must Add explicitly: BaseEntity pre-assigns Id, so graph attach via navigation
-        // would be treated as Modified → UPDATE 0 rows.
         _context.OrderShipments.Add(shipment);
         order.Shipment = shipment;
     }
@@ -455,7 +427,6 @@ public class OrderActionHandler :
     }
 
     private bool IsAdmin() => string.Equals(_currentUser.Role, Roles.Admin, StringComparison.OrdinalIgnoreCase);
-    private bool IsShipper() => string.Equals(_currentUser.Role, Roles.Shipper, StringComparison.OrdinalIgnoreCase);
 
     private void EnsureBuyer(Order order)
     {
@@ -473,41 +444,8 @@ public class OrderActionHandler :
         }
     }
 
-    private void EnsureShipperOrAdmin()
-    {
-        if (!IsShipper() && !IsAdmin())
-        {
-            throw new ForbiddenException("Only shipper or admin can perform this action.");
-        }
-    }
-
-    private void EnsureAssignedShipperOrAdmin(Order order)
-    {
-        if (IsAdmin())
-        {
-            return;
-        }
-
-        if (!IsShipper() || order.ShipperId != _currentUser.UserId)
-        {
-            if (IsShipper() && order.ShipperId is null)
-            {
-                order.ShipperId = _currentUser.UserId;
-                if (order.Shipment is not null)
-                {
-                    order.Shipment.ShipperId = _currentUser.UserId;
-                }
-
-                return;
-            }
-
-            throw new ForbiddenException("Only the assigned shipper or admin can perform this action.");
-        }
-    }
-
     private bool IsParticipant(Order order)
         => order.BuyerId == _currentUser.UserId
            || order.SellerId == _currentUser.UserId
-           || order.ShipperId == _currentUser.UserId
            || IsAdmin();
 }

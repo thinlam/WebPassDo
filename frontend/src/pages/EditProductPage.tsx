@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { productsApi } from '../features/products/api'
 import { categoriesApi } from '../features/categories/api'
 import { addressesApi } from '../features/addresses/api'
@@ -52,7 +52,8 @@ export function EditProductPage() {
   const queryClient = useQueryClient()
   const [error, setError] = useState('')
   const [newFiles, setNewFiles] = useState<FileList | null>(null)
-  const [speeds, setSpeeds] = useState<DeliverySpeed[]>([])
+  const [speeds, setSpeeds] = useState<DeliverySpeed[]>(['Standard', 'Intercity'])
+  const [speedsInitialized, setSpeedsInitialized] = useState(false)
 
   const productQuery = useQuery({
     queryKey: ['product', id],
@@ -77,6 +78,19 @@ export function EditProductPage() {
 
   const product = productQuery.data
 
+  useEffect(() => {
+    setSpeedsInitialized(false)
+  }, [id])
+
+  useEffect(() => {
+    if (!product || speedsInitialized) return
+    const next = (product.allowedDeliverySpeeds ?? []).filter((s): s is DeliverySpeed =>
+      ALL_SPEEDS.includes(s as DeliverySpeed),
+    )
+    setSpeeds(next.length > 0 ? next : ['Standard', 'Intercity'])
+    setSpeedsInitialized(true)
+  }, [product, speedsInitialized])
+
   const {
     register,
     handleSubmit,
@@ -85,33 +99,29 @@ export function EditProductPage() {
     resolver: zodResolver(schema),
     values: product
       ? {
-          name: product.name,
-          description: product.description,
-          originalPrice: product.originalPrice,
-          sellingPrice: product.sellingPrice,
-          condition: product.condition as FormValues['condition'],
-          categoryId: product.categoryId,
-          location: product.location,
-          quantity: product.quantity,
-          status: (['Draft', 'Available', 'Hidden'].includes(product.status as string)
+          name: product.name ?? '',
+          description: product.description ?? '',
+          originalPrice: Number(product.originalPrice) || 0,
+          sellingPrice: Number(product.sellingPrice) || 0,
+          condition: (['New', 'LikeNew', 'Used', 'Damaged'].includes(String(product.condition))
+            ? product.condition
+            : 'Used') as FormValues['condition'],
+          categoryId: String(product.categoryId ?? ''),
+          location: product.location ?? '',
+          quantity: Math.max(1, Number(product.quantity) || 1),
+          status: (['Draft', 'Available', 'Hidden'].includes(String(product.status))
             ? product.status
             : 'Available') as FormValues['status'],
-          pickupAddressId: product.pickupAddressId ?? undefined,
-          bankAccountId: product.bankAccountId ?? undefined,
-          acceptedPaymentOption: (product.acceptedPaymentOption ||
-            'Both') as AcceptedPaymentOption,
+          pickupAddressId: product.pickupAddressId ? String(product.pickupAddressId) : '',
+          bankAccountId: product.bankAccountId ? String(product.bankAccountId) : '',
+          acceptedPaymentOption: (['BankTransfer', 'CashOnDelivery', 'Both'].includes(
+            String(product.acceptedPaymentOption),
+          )
+            ? product.acceptedPaymentOption
+            : 'Both') as AcceptedPaymentOption,
         }
       : undefined,
   })
-
-  if (!product && productQuery.isLoading) return <Spinner />
-  if (productQuery.isError || (!productQuery.isLoading && !product)) {
-    return <EmptyState title="Không tìm thấy sản phẩm" />
-  }
-
-  if (product && speeds.length === 0 && product.allowedDeliverySpeeds?.length > 0) {
-    setSpeeds(product.allowedDeliverySpeeds as DeliverySpeed[])
-  }
 
   const toggleSpeed = (s: DeliverySpeed) =>
     setSpeeds((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]))
@@ -131,11 +141,11 @@ export function EditProductPage() {
       }
       return updated
     },
-    onSuccess: (p) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['product', id] })
       queryClient.invalidateQueries({ queryKey: ['my-products'] })
       queryClient.invalidateQueries({ queryKey: ['products'] })
-      navigate(`/products/${p.id}`)
+      navigate('/my-products')
     },
     onError: (err) => setError(getErrorMessage(err)),
   })
@@ -151,9 +161,45 @@ export function EditProductPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['product', id] }),
   })
 
+  if (!id) {
+    return <EmptyState title="Thiếu mã sản phẩm" description="Quay lại Đồ của tôi và thử lại." />
+  }
+
+  if (productQuery.isLoading || categoriesQuery.isLoading) {
+    return (
+      <Section className="max-w-2xl">
+        <PageHeader title="Chỉnh sửa sản phẩm" />
+        <Spinner />
+      </Section>
+    )
+  }
+
+  if (productQuery.isError) {
+    return (
+      <Section className="max-w-2xl">
+        <EmptyState
+          title="Không tải được sản phẩm"
+          description={getErrorMessage(productQuery.error)}
+        />
+        <Button className="mt-4" onClick={() => productQuery.refetch()}>
+          Thử lại
+        </Button>
+      </Section>
+    )
+  }
+
+  if (!product) {
+    return <EmptyState title="Không tìm thấy sản phẩm" description="Sản phẩm có thể đã bị xóa." />
+  }
+
   return (
     <Section className="max-w-2xl">
-      <PageHeader title="Chỉnh sửa sản phẩm" />
+      <PageHeader title="Chỉnh sửa sản phẩm" description={product.name} />
+      {product.hasActiveOrders && (
+        <p className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Sản phẩm đang có đơn xử lý — không thể đổi giá.
+        </p>
+      )}
       <form
         className="space-y-4 rounded-2xl border border-line bg-white/80 p-6"
         onSubmit={handleSubmit((v) => updateMutation.mutate(v))}
@@ -169,12 +215,14 @@ export function EditProductPage() {
           <Input
             label="Giá gốc"
             type="number"
+            disabled={product.hasActiveOrders}
             error={errors.originalPrice?.message}
             {...register('originalPrice', { valueAsNumber: true })}
           />
           <Input
             label="Giá bán"
             type="number"
+            disabled={product.hasActiveOrders}
             error={errors.sellingPrice?.message}
             {...register('sellingPrice', { valueAsNumber: true })}
           />
@@ -187,30 +235,30 @@ export function EditProductPage() {
             {...register('quantity', { valueAsNumber: true })}
           />
           <Select label="Tình trạng" error={errors.condition?.message} {...register('condition')}>
-            <option value="New">New</option>
-            <option value="LikeNew">LikeNew</option>
-            <option value="Used">Used</option>
-            <option value="Damaged">Damaged</option>
+            <option value="New">Mới</option>
+            <option value="LikeNew">Như mới</option>
+            <option value="Used">Đã dùng</option>
+            <option value="Damaged">Hư hỏng nhẹ</option>
           </Select>
-          <Select label="Trạng thái" error={errors.status?.message} {...register('status')}>
-            <option value="Available">Available</option>
-            <option value="Draft">Draft</option>
-            <option value="Hidden">Hidden</option>
+          <Select label="Trạng thái hiển thị" error={errors.status?.message} {...register('status')}>
+            <option value="Available">Đang bán</option>
+            <option value="Draft">Nháp</option>
+            <option value="Hidden">Ẩn</option>
           </Select>
         </div>
         <Select label="Danh mục" error={errors.categoryId?.message} {...register('categoryId')}>
           <option value="">Chọn danh mục</option>
-          {categoriesQuery.data?.map((c) => (
+          {(categoriesQuery.data ?? []).map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
             </option>
           ))}
         </Select>
-        <Input label="Khu vực" error={errors.location?.message} {...register('location')} />
+        <Input label="Khu vực (nhãn)" error={errors.location?.message} {...register('location')} />
 
         <Select label="Địa chỉ lấy hàng" {...register('pickupAddressId')}>
-          <option value="">Không chọn</option>
-          {addressesQuery.data?.map((a) => (
+          <option value="">Chọn địa chỉ</option>
+          {(addressesQuery.data ?? []).map((a) => (
             <option key={a.id} value={a.id}>
               {a.recipientName} – {a.fullAddress}
             </option>
@@ -218,8 +266,8 @@ export function EditProductPage() {
         </Select>
 
         <Select label="Tài khoản nhận tiền" {...register('bankAccountId')}>
-          <option value="">Không chọn</option>
-          {banksQuery.data?.map((b) => (
+          <option value="">Chọn tài khoản</option>
+          {(banksQuery.data ?? []).map((b) => (
             <option key={b.id} value={b.id}>
               {b.bankName} – {b.accountNumberMasked}
             </option>
@@ -227,11 +275,11 @@ export function EditProductPage() {
         </Select>
 
         <Select
-          label="Phương thức thanh toán"
+          label="Phương thức thanh toán chấp nhận"
           error={errors.acceptedPaymentOption?.message}
           {...register('acceptedPaymentOption')}
         >
-          <option value="Both">Tất cả</option>
+          <option value="Both">Cả hai</option>
           <option value="BankTransfer">Chuyển khoản</option>
           <option value="CashOnDelivery">COD</option>
         </Select>
@@ -253,7 +301,7 @@ export function EditProductPage() {
           </div>
         </fieldset>
 
-        {product && product.images.length > 0 && (
+        {(product.images ?? []).length > 0 && (
           <div className="space-y-2">
             <span className="text-sm font-medium text-ink">Hình ảnh hiện tại</span>
             <div className="grid grid-cols-4 gap-2">
@@ -309,7 +357,7 @@ export function EditProductPage() {
           <Button type="submit" disabled={isSubmitting || updateMutation.isPending}>
             {updateMutation.isPending ? 'Đang lưu...' : 'Lưu thay đổi'}
           </Button>
-          <Button type="button" variant="ghost" onClick={() => navigate(-1)}>
+          <Button type="button" variant="ghost" onClick={() => navigate('/my-products')}>
             Hủy
           </Button>
         </div>

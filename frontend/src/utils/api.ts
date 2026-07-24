@@ -31,7 +31,8 @@ export function resolveMediaUrl(url?: string | null) {
 export async function unwrap<T>(promise: Promise<{ data: ApiResponse<T> }>) {
   const { data } = await promise
   if (!data.success) {
-    throw new Error(data.message ?? 'Request failed')
+    const firstError = data.errors ? Object.values(data.errors)[0]?.[0] : null
+    throw new Error(firstError || data.message || 'Request failed')
   }
   return data.data
 }

@@ -15,6 +15,7 @@ import {
   getPaymentMethodLabel,
   getPaymentStatusLabel,
 } from '../lib/orderStatus'
+import type { HandOverPayload } from '../types'
 
 export function OrderDetailPage() {
   const { id = '' } = useParams()
@@ -22,6 +23,7 @@ export function OrderDetailPage() {
   const user = useAuthStore((s) => s.user)
   const [error, setError] = useState('')
   const [actionNote, setActionNote] = useState('')
+  const [showHandoverModal, setShowHandoverModal] = useState(false)
 
   const query = useQuery({
     queryKey: ['order', id],
@@ -49,12 +51,21 @@ export function OrderDetailPage() {
   const cancelM = useMutation(act(() => ordersApi.cancel(id, actionNote || undefined)))
   const markPreparedM = useMutation(act(() => ordersApi.markPrepared(id)))
   const confirmDeliveredM = useMutation(act(() => ordersApi.confirmDelivered(id)))
-  const claimM = useMutation(act(() => ordersApi.claim(id)))
-  const confirmPickupM = useMutation(act(() => ordersApi.confirmPickup(id, actionNote || undefined)))
+  const handOverM = useMutation(act(() => ordersApi.handOver(id, handoverForm)))
   const failDeliveryM = useMutation(act(() => ordersApi.failDelivery(id, actionNote || 'Giao thất bại')))
 
   const [proofUrl, setProofUrl] = useState('')
   const proofM = useMutation(act(() => ordersApi.paymentProof(id, proofUrl)))
+
+  const [handoverForm, setHandoverForm] = useState<HandOverPayload>({
+    deliveryPersonName: '',
+    phone: '',
+    company: '',
+    vehicleNumber: '',
+    trackingCode: '',
+    note: '',
+    estimatedDeliveryTime: '',
+  })
 
   if (query.isLoading) return <Spinner />
   if (!query.data) return <EmptyState title="Không tìm thấy đơn hàng" />
@@ -62,14 +73,9 @@ export function OrderDetailPage() {
   const o = query.data
   const isBuyer = user?.id === o.buyerId
   const isSeller = user?.id === o.sellerId || user?.role === 'Admin'
-  const isShipperRole = user?.role === 'Shipper' || user?.role === 'Admin'
-  const isMyShipper = o.shipperId === user?.id || (user?.role === 'Admin' && !!o.shipperId)
-  const canClaim =
-    isShipperRole &&
-    o.status === 'AwaitingPickup' &&
-    !o.shipperId &&
-    !!o.preparedAt
   const image = resolveMediaUrl(o.productImageUrl)
+
+  const courierInfo = o.shipment
 
   return (
     <Section className="max-w-3xl">
@@ -135,9 +141,27 @@ export function OrderDetailPage() {
               <p className="text-muted">Lấy hàng: {o.pickupAddress.fullAddress}</p>
             )}
             {o.shipment?.trackingCode && <p>Mã vận đơn: {o.shipment.trackingCode}</p>}
-            {o.shipperName && <p>Shipper: {o.shipperName}</p>}
           </div>
         </Card>
+
+        {/* Courier info for buyer when Shipping */}
+        {isBuyer && o.status === 'Shipping' && courierInfo && (courierInfo.shipperName || courierInfo.shipperPhone) && (
+          <Card title="Thông tin vận chuyển">
+            <div className="space-y-2 text-sm">
+              {courierInfo.shipperName && <p>Người giao: {courierInfo.shipperName}</p>}
+              {courierInfo.shipperPhone && (
+                <div className="flex gap-3">
+                  <span>SĐT: {courierInfo.shipperPhone}</span>
+                  <a href={`tel:${courierInfo.shipperPhone}`} className="text-forest hover:underline">Gọi</a>
+                  <a href={`sms:${courierInfo.shipperPhone}`} className="text-forest hover:underline">SMS</a>
+                </div>
+              )}
+              {courierInfo.carrierName && <p>Đơn vị: {courierInfo.carrierName}</p>}
+              {courierInfo.trackingCode && <p>Mã vận đơn: {courierInfo.trackingCode}</p>}
+              {courierInfo.deliveryNote && <p>Ghi chú: {courierInfo.deliveryNote}</p>}
+            </div>
+          </Card>
+        )}
 
         {/* Payment */}
         <Card title="Thanh toán">
@@ -257,46 +281,88 @@ export function OrderDetailPage() {
                 </Button>
               </>
             )}
-            {isSeller && o.status === 'AwaitingPickup' && !o.preparedAt && (
+            {isSeller && (o.status === 'AwaitingPreparation' || (o.status === 'AwaitingPickup' && !o.preparedAt)) && (
               <Button onClick={() => markPreparedM.mutate()} disabled={markPreparedM.isPending}>
                 Đã chuẩn bị hàng
               </Button>
             )}
-            {isSeller && o.status === 'AwaitingPickup' && !o.preparedAt && (
-              <p className="w-full text-sm text-muted">
-                Bấm <strong>Đã chuẩn bị hàng</strong> trước, sau đó mới nhận đơn giao / gọi shipper.
-              </p>
+            {isSeller && (o.status === 'AwaitingHandover' || (o.status === 'AwaitingPickup' && !!o.preparedAt)) && (
+              <Button onClick={() => setShowHandoverModal(true)}>
+                Bàn giao cho vận chuyển
+              </Button>
             )}
             {isSeller && ['AwaitingPayment', 'PendingConfirmation'].includes(o.status) && (
               <Button variant="danger" onClick={() => rejectM.mutate()} disabled={rejectM.isPending}>
                 Từ chối / Hủy đơn
               </Button>
             )}
-
-            {/* Shipper actions — chỉ hiện sau khi seller đã chuẩn bị */}
-            {canClaim && (
-              <Button onClick={() => claimM.mutate()} disabled={claimM.isPending}>
-                Nhận đơn giao
+            {isSeller && o.status === 'Shipping' && (
+              <Button variant="danger" onClick={() => failDeliveryM.mutate()} disabled={failDeliveryM.isPending}>
+                Giao thất bại
               </Button>
-            )}
-            {isShipperRole && o.status === 'AwaitingPickup' && o.shipperId && (isMyShipper || o.shipperId === user?.id) && (
-              <Button onClick={() => confirmPickupM.mutate()} disabled={confirmPickupM.isPending}>
-                Đã lấy hàng
-              </Button>
-            )}
-            {isShipperRole && o.status === 'Shipping' && (o.shipperId === user?.id || user?.role === 'Admin') && (
-              <>
-                <Button onClick={() => confirmDeliveredM.mutate()} disabled={confirmDeliveredM.isPending}>
-                  Đã giao
-                </Button>
-                <Button variant="danger" onClick={() => failDeliveryM.mutate()} disabled={failDeliveryM.isPending}>
-                  Giao thất bại
-                </Button>
-              </>
             )}
           </div>
         </div>
       </div>
+
+      {/* Handover Modal */}
+      {showHandoverModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md space-y-4 rounded-2xl bg-white p-6 shadow-xl">
+            <h2 className="font-display text-xl text-ink">Bàn giao đơn hàng</h2>
+            <Input
+              label="Tên người giao *"
+              value={handoverForm.deliveryPersonName}
+              onChange={(e) => setHandoverForm((f) => ({ ...f, deliveryPersonName: e.target.value }))}
+              required
+            />
+            <Input
+              label="Số điện thoại *"
+              value={handoverForm.phone}
+              onChange={(e) => setHandoverForm((f) => ({ ...f, phone: e.target.value }))}
+              required
+            />
+            <Input
+              label="Đơn vị vận chuyển *"
+              value={handoverForm.company}
+              onChange={(e) => setHandoverForm((f) => ({ ...f, company: e.target.value }))}
+              required
+            />
+            <Input
+              label="Biển số xe"
+              value={handoverForm.vehicleNumber}
+              onChange={(e) => setHandoverForm((f) => ({ ...f, vehicleNumber: e.target.value }))}
+            />
+            <Input
+              label="Mã vận đơn"
+              value={handoverForm.trackingCode}
+              onChange={(e) => setHandoverForm((f) => ({ ...f, trackingCode: e.target.value }))}
+            />
+            <Input
+              label="Ghi chú"
+              value={handoverForm.note}
+              onChange={(e) => setHandoverForm((f) => ({ ...f, note: e.target.value }))}
+            />
+            <Input
+              label="Thời gian dự kiến giao"
+              type="datetime-local"
+              value={handoverForm.estimatedDeliveryTime}
+              onChange={(e) => setHandoverForm((f) => ({ ...f, estimatedDeliveryTime: e.target.value }))}
+            />
+            <div className="flex gap-3">
+              <Button
+                onClick={() => handOverM.mutate()}
+                disabled={!handoverForm.deliveryPersonName || !handoverForm.phone || !handoverForm.company || handOverM.isPending}
+              >
+                {handOverM.isPending ? 'Đang gửi...' : 'Xác nhận bàn giao'}
+              </Button>
+              <Button variant="ghost" onClick={() => setShowHandoverModal(false)}>
+                Hủy
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </Section>
   )
 }

@@ -11,9 +11,17 @@ public class ValidationException : Exception
     }
 
     public ValidationException(IDictionary<string, string[]> errors)
-        : this()
+        : base(FirstMessage(errors))
     {
         Errors = errors;
+    }
+
+    private static string FirstMessage(IDictionary<string, string[]> errors)
+    {
+        var first = errors.Values.SelectMany(x => x).FirstOrDefault();
+        return string.IsNullOrWhiteSpace(first)
+            ? "Dữ liệu không hợp lệ."
+            : first;
     }
 
     public ValidationException(string message)

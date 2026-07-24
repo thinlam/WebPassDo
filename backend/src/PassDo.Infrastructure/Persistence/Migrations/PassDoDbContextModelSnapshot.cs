@@ -77,6 +77,57 @@ namespace PassDo.Infrastructure.Persistence.Migrations
                     b.ToTable("Categories", (string)null);
                 });
 
+            modelBuilder.Entity("PassDo.Domain.Entities.Conversation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("BuyerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("LastMessageAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("SellerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BuyerId");
+
+                    b.HasIndex("SellerId");
+
+                    b.HasIndex("ProductId", "BuyerId", "SellerId")
+                        .IsUnique();
+
+                    b.ToTable("Conversations", (string)null);
+                });
+
             modelBuilder.Entity("PassDo.Domain.Entities.Favorite", b =>
                 {
                     b.Property<Guid>("Id")
@@ -119,6 +170,58 @@ namespace PassDo.Infrastructure.Persistence.Migrations
                         .HasFilter("[IsDeleted] = 0");
 
                     b.ToTable("Favorites", (string)null);
+                });
+
+            modelBuilder.Entity("PassDo.Domain.Entities.Message", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("SenderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConversationId");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("SenderId");
+
+                    b.ToTable("Messages", (string)null);
                 });
 
             modelBuilder.Entity("PassDo.Domain.Entities.Order", b =>
@@ -321,8 +424,6 @@ namespace PassDo.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("SellerId");
 
-                    b.HasIndex("ShipperId");
-
                     b.HasIndex("Status");
 
                     b.ToTable("Orders", (string)null);
@@ -490,9 +591,21 @@ namespace PassDo.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("DeliveredConfirmedByUserId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("DeliveryCompany")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
                     b.Property<string>("DeliveryNote")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("DeliveryPersonName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("DeliveryPersonPhone")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
 
                     b.Property<string>("DeliverySpeed")
                         .IsRequired()
@@ -505,14 +618,20 @@ namespace PassDo.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("EstimatedDeliveryTo")
                         .HasColumnType("datetime2");
 
+                    b.Property<Guid?>("HandedOverByUserId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsInnerCity")
                         .HasColumnType("bit");
 
                     b.Property<Guid>("OrderId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid?>("PickedUpConfirmedByUserId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<DateTime?>("PickedUpAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<Guid?>("PreparedByUserId")
                         .HasColumnType("uniqueidentifier");
@@ -522,11 +641,19 @@ namespace PassDo.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<string>("ReceiverDistrict")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<DateTime?>("SellerHandedOverAt")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("SenderCity")
                         .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("SenderDistrict")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
@@ -550,12 +677,14 @@ namespace PassDo.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("UpdatedBy")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("VehicleNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("OrderId")
                         .IsUnique();
-
-                    b.HasIndex("ShipperId");
 
                     b.ToTable("OrderShipments", (string)null);
                 });
@@ -815,6 +944,9 @@ namespace PassDo.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("CreatedBy")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTime?>("DateOfBirth")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("datetime2");
 
@@ -836,6 +968,9 @@ namespace PassDo.Infrastructure.Persistence.Migrations
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
+
+                    b.Property<DateTime?>("LastSeenAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
@@ -1003,6 +1138,33 @@ namespace PassDo.Infrastructure.Persistence.Migrations
                     b.ToTable("UserBankAccounts", (string)null);
                 });
 
+            modelBuilder.Entity("PassDo.Domain.Entities.Conversation", b =>
+                {
+                    b.HasOne("PassDo.Domain.Entities.User", "Buyer")
+                        .WithMany()
+                        .HasForeignKey("BuyerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("PassDo.Domain.Entities.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("PassDo.Domain.Entities.User", "Seller")
+                        .WithMany()
+                        .HasForeignKey("SellerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Buyer");
+
+                    b.Navigation("Product");
+
+                    b.Navigation("Seller");
+                });
+
             modelBuilder.Entity("PassDo.Domain.Entities.Favorite", b =>
                 {
                     b.HasOne("PassDo.Domain.Entities.Product", "Product")
@@ -1020,6 +1182,25 @@ namespace PassDo.Infrastructure.Persistence.Migrations
                     b.Navigation("Product");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("PassDo.Domain.Entities.Message", b =>
+                {
+                    b.HasOne("PassDo.Domain.Entities.Conversation", "Conversation")
+                        .WithMany("Messages")
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PassDo.Domain.Entities.User", "Sender")
+                        .WithMany()
+                        .HasForeignKey("SenderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Conversation");
+
+                    b.Navigation("Sender");
                 });
 
             modelBuilder.Entity("PassDo.Domain.Entities.Order", b =>
@@ -1042,18 +1223,11 @@ namespace PassDo.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("PassDo.Domain.Entities.User", "Shipper")
-                        .WithMany("ShipmentsAssigned")
-                        .HasForeignKey("ShipperId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.Navigation("Buyer");
 
                     b.Navigation("Product");
 
                     b.Navigation("Seller");
-
-                    b.Navigation("Shipper");
                 });
 
             modelBuilder.Entity("PassDo.Domain.Entities.OrderItem", b =>
@@ -1101,14 +1275,7 @@ namespace PassDo.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("PassDo.Domain.Entities.User", "Shipper")
-                        .WithMany()
-                        .HasForeignKey("ShipperId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.Navigation("Order");
-
-                    b.Navigation("Shipper");
                 });
 
             modelBuilder.Entity("PassDo.Domain.Entities.OrderStatusHistory", b =>
@@ -1211,6 +1378,11 @@ namespace PassDo.Infrastructure.Persistence.Migrations
                     b.Navigation("Products");
                 });
 
+            modelBuilder.Entity("PassDo.Domain.Entities.Conversation", b =>
+                {
+                    b.Navigation("Messages");
+                });
+
             modelBuilder.Entity("PassDo.Domain.Entities.Order", b =>
                 {
                     b.Navigation("Items");
@@ -1246,8 +1418,6 @@ namespace PassDo.Infrastructure.Persistence.Migrations
                     b.Navigation("RefreshTokens");
 
                     b.Navigation("Sales");
-
-                    b.Navigation("ShipmentsAssigned");
                 });
 #pragma warning restore 612, 618
         }

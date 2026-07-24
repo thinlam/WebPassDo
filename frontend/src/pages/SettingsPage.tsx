@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { addressesApi } from '../features/addresses/api'
 import { bankAccountsApi } from '../features/bankAccounts/api'
 import {
@@ -18,7 +19,17 @@ import type { AddressType, UserAddress, UserBankAccount } from '../types'
 type Tab = 'addresses' | 'banks'
 
 export function SettingsPage() {
-  const [tab, setTab] = useState<Tab>('addresses')
+  const [searchParams] = useSearchParams()
+  const tabParam = searchParams.get('tab')
+  const [tab, setTab] = useState<Tab>(() => {
+    if (tabParam === 'banks') return 'banks'
+    return 'addresses'
+  })
+
+  useEffect(() => {
+    if (tabParam === 'banks') setTab('banks')
+    else if (tabParam === 'addresses') setTab('addresses')
+  }, [tabParam])
 
   return (
     <Section>

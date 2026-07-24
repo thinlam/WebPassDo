@@ -53,9 +53,7 @@ public static class OrderMapper
             BuyerId = order.BuyerId,
             BuyerName = order.Buyer?.FullName,
             SellerId = order.SellerId,
-            SellerName = order.Seller?.FullName,
-            ShipperId = order.ShipperId,
-            ShipperName = order.Shipper?.FullName
+            SellerName = order.Seller?.FullName
         };
     }
 
@@ -84,8 +82,6 @@ public static class OrderMapper
             BuyerName = order.Buyer?.FullName,
             SellerId = order.SellerId,
             SellerName = order.Seller?.FullName,
-            ShipperId = order.ShipperId,
-            ShipperName = order.Shipper?.FullName,
             Note = order.Note,
             CancellationReason = order.CancellationReason,
             ConfirmedAt = order.ConfirmedAt,
@@ -129,12 +125,6 @@ public static class OrderMapper
                 FullName = order.Buyer.FullName,
                 PhoneNumber = order.Buyer.PhoneNumber ?? order.ShippingPhone
             };
-            dto.Shipper = order.Shipper is null ? null : new OrderPartyDto
-            {
-                Id = order.Shipper.Id,
-                FullName = order.Shipper.FullName,
-                PhoneNumber = order.Shipper.PhoneNumber
-            };
             dto.ShippingAddress = new OrderAddressDto
             {
                 RecipientName = order.ShippingRecipientName,
@@ -161,7 +151,6 @@ public static class OrderMapper
         {
             dto.Seller = order.Seller is null ? null : new OrderPartyDto { Id = order.Seller.Id, FullName = order.Seller.FullName };
             dto.Buyer = order.Buyer is null ? null : new OrderPartyDto { Id = order.Buyer.Id, FullName = order.Buyer.FullName };
-            dto.Shipper = order.Shipper is null ? null : new OrderPartyDto { Id = order.Shipper.Id, FullName = order.Shipper.FullName };
         }
 
         if (order.Payment is not null)
@@ -187,15 +176,17 @@ public static class OrderMapper
                 SenderCity = order.Shipment.SenderCity,
                 ReceiverCity = order.Shipment.ReceiverCity,
                 ShippingFee = order.Shipment.ShippingFee,
+                IsInnerCity = order.Shipment.IsInnerCity,
                 EstimatedDeliveryFrom = order.Shipment.EstimatedDeliveryFrom,
                 EstimatedDeliveryTo = order.Shipment.EstimatedDeliveryTo,
                 SellerHandedOverAt = order.Shipment.SellerHandedOverAt,
-                ShipperReceivedAt = order.Shipment.ShipperReceivedAt,
+                PickedUpAt = order.Shipment.PickedUpAt,
                 DeliveredAt = order.Shipment.DeliveredAt,
                 DeliveryNote = order.Shipment.DeliveryNote,
-                ShipperId = order.Shipment.ShipperId,
-                ShipperName = order.Shipper?.FullName,
-                ShipperPhone = includeSensitiveContact ? order.Shipper?.PhoneNumber : null
+                DeliveryPersonName = includeSensitiveContact ? order.Shipment.DeliveryPersonName : null,
+                DeliveryPersonPhone = includeSensitiveContact ? order.Shipment.DeliveryPersonPhone : null,
+                DeliveryCompany = order.Shipment.DeliveryCompany,
+                VehicleNumber = order.Shipment.VehicleNumber
             };
         }
 

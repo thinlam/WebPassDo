@@ -3,7 +3,9 @@ import type { OrderStatus } from '../types'
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   AwaitingPayment: 'Chờ thanh toán',
   PendingConfirmation: 'Chờ xác nhận',
-  AwaitingPickup: 'Chờ lấy hàng',
+  AwaitingPreparation: 'Chờ chuẩn bị hàng',
+  AwaitingHandover: 'Chờ bàn giao',
+  AwaitingPickup: 'Chờ chuẩn bị hàng',
   Shipping: 'Đang giao hàng',
   Delivered: 'Đã giao',
   Cancelled: 'Đã hủy',
@@ -26,6 +28,9 @@ export function getStatusTone(status: string) {
     case 'Refunded':
       return 'danger' as const
     case 'Shipping':
+    case 'AwaitingHandover':
+      return 'warn' as const
+    case 'AwaitingPreparation':
     case 'AwaitingPickup':
       return 'warn' as const
     default:
@@ -72,21 +77,36 @@ export function formatVND(value: number): string {
   }).format(value)
 }
 
+import { parseApiDate } from './datetime'
+
+const VN_TZ = 'Asia/Ho_Chi_Minh'
+
 export function formatDate(date: string | null | undefined): string {
   if (!date) return '—'
+  const d = parseApiDate(date)
+  if (Number.isNaN(d.getTime())) return '—'
   return new Intl.DateTimeFormat('vi-VN', {
+    timeZone: VN_TZ,
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(new Date(date))
+    hour12: false,
+  }).format(d)
 }
 
 export function formatDateRange(from?: string | null, to?: string | null): string {
   if (!from && !to) return '—'
-  const fmt = (d: string) =>
-    new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit' }).format(new Date(d))
+  const fmt = (d: string) => {
+    const parsed = parseApiDate(d)
+    if (Number.isNaN(parsed.getTime())) return '—'
+    return new Intl.DateTimeFormat('vi-VN', {
+      timeZone: VN_TZ,
+      day: '2-digit',
+      month: '2-digit',
+    }).format(parsed)
+  }
   if (from && to) return `${fmt(from)} – ${fmt(to)}`
   if (from) return `Từ ${fmt(from)}`
   return `Đến ${fmt(to!)}`

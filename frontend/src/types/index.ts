@@ -13,7 +13,7 @@ export type PagedResult<T> = {
   totalPages: number
 }
 
-export type UserRole = 'User' | 'Admin' | 'Shipper'
+export type UserRole = 'User' | 'Admin'
 
 export type AuthUser = {
   id: string
@@ -46,6 +46,8 @@ export type ProductStatus = 'Draft' | 'Available' | 'Reserved' | 'Sold' | 'Hidde
 export type OrderStatus =
   | 'AwaitingPayment'
   | 'PendingConfirmation'
+  | 'AwaitingPreparation'
+  | 'AwaitingHandover'
   | 'AwaitingPickup'
   | 'Shipping'
   | 'Delivered'
@@ -53,6 +55,38 @@ export type OrderStatus =
   | 'DeliveryFailed'
   | 'Returned'
   | 'Refunded'
+
+export type HandOverPayload = {
+  deliveryPersonName: string
+  phone: string
+  company: string
+  vehicleNumber?: string
+  trackingCode?: string
+  note?: string
+  estimatedDeliveryTime?: string
+}
+
+export type Conversation = {
+  id: string
+  productId?: string
+  otherUserId: string
+  otherUserName: string
+  otherUserAvatarUrl?: string | null
+  otherUserIsOnline?: boolean
+  otherUserLastSeenAt?: string | null
+  lastMessage?: string | null
+  lastMessagePreview?: string | null
+  lastMessageAt?: string | null
+  unreadCount: number
+}
+
+export type Message = {
+  id: string
+  conversationId: string
+  senderId: string
+  content: string
+  createdAt: string
+}
 
 export type DeliverySpeed = 'Express' | 'SameDay' | 'Standard' | 'Intercity'
 export type PaymentMethod = 'BankTransfer' | 'CashOnDelivery'
@@ -97,6 +131,8 @@ export type Product = {
   categoryName?: string | null
   sellerId: string
   sellerName?: string | null
+  sellerIsOnline?: boolean
+  sellerLastSeenAt?: string | null
   pickupAddressId?: string | null
   bankAccountId?: string | null
   acceptedPaymentOption: AcceptedPaymentOption | string

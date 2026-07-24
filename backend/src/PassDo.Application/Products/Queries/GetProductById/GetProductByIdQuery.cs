@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using PassDo.Application.Common.Exceptions;
 using PassDo.Application.Common.Interfaces;
+using PassDo.Application.Presence;
 using PassDo.Application.Products.DTOs;
 using PassDo.Application.Products.Mappings;
 using PassDo.Domain.Constants;
@@ -58,6 +59,8 @@ public class GetProductByIdQueryHandler : IRequestHandler<GetProductByIdQuery, P
 
         var dto = ProductMapper.ToDto(product, hasActiveOrders);
         dto.SellerName = seller?.FullName;
+        dto.SellerIsOnline = PresenceRules.IsOnline(seller?.LastSeenAt, DateTime.UtcNow);
+        dto.SellerLastSeenAt = seller?.LastSeenAt;
         return dto;
     }
 }

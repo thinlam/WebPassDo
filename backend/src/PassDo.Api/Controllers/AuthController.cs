@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PassDo.Api.Contracts.Auth;
+using PassDo.Application.Auth.Commands.ChangePassword;
 using PassDo.Application.Auth.Commands.Login;
 using PassDo.Application.Auth.Commands.Logout;
 using PassDo.Application.Auth.Commands.RefreshToken;
@@ -64,6 +65,14 @@ public class AuthController : ControllerBase
     {
         await _mediator.Send(new LogoutCommand(request.RefreshToken));
         return Ok(ApiResponse<object>.Ok(null!, "Logout successful."));
+    }
+
+    [HttpPost("change-password")]
+    [Authorize]
+    public async Task<ActionResult<ApiResponse<object>>> ChangePassword([FromBody] ChangePasswordRequest request)
+    {
+        await _mediator.Send(new ChangePasswordCommand(request.CurrentPassword, request.NewPassword));
+        return Ok(ApiResponse<object>.Ok(null!, "Password changed."));
     }
 
     private string? GetClientIp() =>

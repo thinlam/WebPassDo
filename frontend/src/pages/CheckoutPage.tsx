@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { productsApi } from '../features/products/api'
 import { ordersApi } from '../features/orders/api'
 import { addressesApi } from '../features/addresses/api'
+import { shippingApi } from '../features/shipping/api'
 import { Button, EmptyState, Section, Select, Spinner } from '../components/common/ui'
 import { getErrorMessage, resolveMediaUrl } from '../utils/api'
 import {
@@ -55,6 +56,12 @@ export function CheckoutPage() {
     }
   }, [productQuery.data])
 
+  const shippingQuery = useQuery({
+    queryKey: ['shipping-calculate', productId, addressId, speed],
+    queryFn: () => shippingApi.calculate({ productId, shippingAddressId: addressId, deliverySpeed: speed }),
+    enabled: !!productId && !!addressId,
+  })
+
   const previewQuery = useQuery({
     queryKey: ['order-preview', productId, quantity, addressId, speed, payment],
     queryFn: () =>
@@ -90,6 +97,7 @@ export function CheckoutPage() {
 
   const product = productQuery.data
   const preview = previewQuery.data
+  const shippingCalc = shippingQuery.data
   const image = resolveMediaUrl(product.images?.find((i) => i.isPrimary)?.url ?? product.images?.[0]?.url)
   const allowedSpeeds = product.allowedDeliverySpeeds ?? []
   const payOpt = product.acceptedPaymentOption
@@ -160,7 +168,7 @@ export function CheckoutPage() {
             {addressesQuery.data?.length === 0 && (
               <p className="text-xs text-muted">
                 Chưa có địa chỉ.{' '}
-                <a href="/settings" className="text-forest hover:underline">
+                <a href="/settings?tab=addresses" className="text-forest hover:underline">
                   Thêm địa chỉ →
                 </a>
               </p>
@@ -228,8 +236,11 @@ export function CheckoutPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted">Phí vận chuyển</span>
-                  <span>{formatVND(preview.shippingFee)}</span>
+                  <span>{shippingCalc ? formatVND(shippingCalc.fee) : formatVND(preview.shippingFee)}</span>
                 </div>
+                {shippingCalc?.fee === 0 && (
+                  <p className="text-xs text-emerald-700">Miễn phí giao hàng nội thành</p>
+                )}
                 <div className="border-t border-line pt-2">
                   <div className="flex justify-between font-medium">
                     <span>Tổng thanh toán</span>

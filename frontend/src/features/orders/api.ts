@@ -2,6 +2,7 @@ import { apiClient } from '../../api/client'
 import type {
   ApiResponse,
   DeliverySpeed,
+  HandOverPayload,
   OrderDetail,
   OrderListItem,
   OrderPreview,
@@ -37,15 +38,6 @@ export const ordersApi = {
   mySales: (params: { page?: number; pageSize?: number; status?: OrderStatus } = {}) =>
     unwrap(apiClient.get<ApiResponse<PagedResult<OrderListItem>>>('/orders/my-sales', { params })),
 
-  shipperOrders: (
-    params: {
-      page?: number
-      pageSize?: number
-      status?: OrderStatus
-      availableOnly?: boolean
-    } = {},
-  ) => unwrap(apiClient.get<ApiResponse<PagedResult<OrderListItem>>>('/orders/shipper', { params })),
-
   getById: (id: string) =>
     unwrap(apiClient.get<ApiResponse<OrderDetail>>(`/orders/${id}`)),
 
@@ -69,18 +61,8 @@ export const ordersApi = {
   markPrepared: (id: string) =>
     unwrap(apiClient.post<ApiResponse<OrderDetail>>(`/orders/${id}/mark-prepared`)),
 
-  assignShipper: (id: string, shipperId: string) =>
-    unwrap(
-      apiClient.post<ApiResponse<OrderDetail>>(`/orders/${id}/assign-shipper`, { shipperId }),
-    ),
-
-  claim: (id: string) =>
-    unwrap(apiClient.post<ApiResponse<OrderDetail>>(`/orders/${id}/claim`)),
-
-  confirmPickup: (id: string, trackingCode?: string) =>
-    unwrap(
-      apiClient.post<ApiResponse<OrderDetail>>(`/orders/${id}/confirm-pickup`, { trackingCode }),
-    ),
+  handOver: (id: string, payload: HandOverPayload) =>
+    unwrap(apiClient.post<ApiResponse<OrderDetail>>(`/orders/${id}/hand-over`, payload)),
 
   confirmDelivered: (id: string) =>
     unwrap(apiClient.post<ApiResponse<OrderDetail>>(`/orders/${id}/confirm-delivered`)),

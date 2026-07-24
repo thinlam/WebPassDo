@@ -24,6 +24,8 @@ public class ProductDto
     public string? CategoryName { get; set; }
     public Guid SellerId { get; set; }
     public string? SellerName { get; set; }
+    public bool SellerIsOnline { get; set; }
+    public DateTime? SellerLastSeenAt { get; set; }
     public Guid? PickupAddressId { get; set; }
     public Guid? BankAccountId { get; set; }
     public string AcceptedPaymentOption { get; set; } = string.Empty;
