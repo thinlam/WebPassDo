@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PassDo.Api.Contracts.Auth;
 using PassDo.Application.Auth.Commands.ChangePassword;
+using PassDo.Application.Auth.Commands.GoogleLogin;
 using PassDo.Application.Auth.Commands.Login;
 using PassDo.Application.Auth.Commands.Logout;
 using PassDo.Application.Auth.Commands.RefreshToken;
@@ -46,6 +47,14 @@ public class AuthController : ControllerBase
             GetClientIp()));
 
         return Ok(ApiResponse<object>.Ok(result, "Login successful."));
+    }
+
+    [HttpPost("google")]
+    [AllowAnonymous]
+    public async Task<ActionResult<ApiResponse<object>>> GoogleLogin([FromBody] GoogleLoginRequest request)
+    {
+        var result = await _mediator.Send(new GoogleLoginCommand(request.IdToken, GetClientIp()));
+        return Ok(ApiResponse<object>.Ok(result, "Google login successful."));
     }
 
     [HttpPost("refresh-token")]

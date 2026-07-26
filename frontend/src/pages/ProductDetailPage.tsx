@@ -9,6 +9,29 @@ import { Badge, Button, EmptyState, Spinner } from '../components/common/ui'
 import { formatPrice, getErrorMessage, resolveMediaUrl } from '../utils/api'
 import { PresenceLabel } from '../components/presence/PresenceLabel'
 import { usePresenceHub } from '../features/presence/usePresenceHub'
+import { formatDate } from '../lib/orderStatus'
+
+const PAYMENT_LABELS: Record<string, string> = {
+  BankTransfer: 'Chuyển khoản',
+  CashOnDelivery: 'COD',
+  Both: 'Chuyển khoản & COD',
+}
+
+const CONDITION_LABELS: Record<string, string> = {
+  New: 'Mới',
+  LikeNew: 'Như mới',
+  Used: 'Đã dùng',
+  Damaged: 'Có hư hỏng',
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  Draft: 'Nháp',
+  Available: 'Đang bán',
+  Hidden: 'Đã ẩn',
+  Sold: 'Đã bán',
+  Reserved: 'Hết hàng / Đã giữ',
+  Rejected: 'Bị từ chối',
+}
 
 export function ProductDetailPage() {
   const { id = '' } = useParams()
@@ -73,7 +96,7 @@ export function ProductDetailPage() {
 
   return (
     <div className="mx-auto grid max-w-6xl gap-8 px-4 py-8 md:grid-cols-2 md:px-6">
-      <div className="overflow-hidden rounded-3xl border border-line bg-white">
+      <div className="overflow-hidden rounded-3xl border border-line bg-surface">
         <div className="aspect-[4/3] bg-sand">
           {primary ? (
             <img src={primary} alt={product.name} className="h-full w-full object-cover" />
@@ -100,21 +123,67 @@ export function ProductDetailPage() {
 
       <div className="space-y-5">
         <div className="flex flex-wrap gap-2">
-          <Badge tone="success">{product.status}</Badge>
-          <Badge>{product.condition}</Badge>
+          <Badge tone="success">{STATUS_LABELS[String(product.status)] ?? product.status}</Badge>
+          <Badge>{CONDITION_LABELS[String(product.condition)] ?? product.condition}</Badge>
           <Badge tone="neutral">{product.categoryName ?? 'Danh mục'}</Badge>
         </div>
         <h1 className="font-display text-4xl text-ink">{product.name}</h1>
         <p className="font-display text-3xl text-forest">{formatPrice(product.sellingPrice)}</p>
         <p className="text-sm text-muted">
           Giá gốc {formatPrice(product.originalPrice)} · {product.location}
+          {!isOwner && typeof product.viewCount === 'number' ? ` · ${product.viewCount} lượt xem` : ''}
         </p>
         {product.quantity > 1 && (
           <p className="text-sm text-muted">Còn {product.quantity} sản phẩm</p>
         )}
         <p className="whitespace-pre-wrap text-muted">{product.description}</p>
 
-        {/* Seller info */}
+        {isOwner && (
+          <div className="space-y-3 rounded-2xl border border-line bg-sand/40 p-4 text-sm">
+            <h3 className="font-medium text-ink">Thông tin quản lý sản phẩm</h3>
+            <p>
+              <span className="text-muted">Người bán: </span>
+              {product.sellerName ?? '—'}
+            </p>
+            {product.sellerPhoneNumber && (
+              <p>
+                <span className="text-muted">Số điện thoại: </span>
+                {product.sellerPhoneNumber}
+              </p>
+            )}
+            {product.pickupAddressFull && (
+              <p>
+                <span className="text-muted">Địa chỉ lấy hàng: </span>
+                {product.pickupAddressFull}
+              </p>
+            )}
+            <p>
+              <span className="text-muted">Thanh toán chấp nhận: </span>
+              {PAYMENT_LABELS[String(product.acceptedPaymentOption)] ?? product.acceptedPaymentOption}
+            </p>
+            {(product.bankName || product.bankAccountNumberMasked) && (
+              <p>
+                <span className="text-muted">Tài khoản nhận tiền: </span>
+                {product.bankName} · {product.bankAccountHolderName} · {product.bankAccountNumberMasked}
+              </p>
+            )}
+            <p>
+              <span className="text-muted">Ngày đăng: </span>
+              {formatDate(product.createdAt)}
+            </p>
+            {product.updatedAt && (
+              <p>
+                <span className="text-muted">Ngày cập nhật: </span>
+                {formatDate(product.updatedAt)}
+              </p>
+            )}
+            <p>
+              <span className="text-muted">Lượt xem: </span>
+              {product.viewCount ?? 0}
+            </p>
+          </div>
+        )}
+
         {!isOwner && (
           <div className="rounded-2xl border border-line bg-sand/30 p-4">
             <h3 className="mb-2 font-medium text-ink">Người bán</h3>
@@ -148,7 +217,7 @@ export function ProductDetailPage() {
           </div>
         )}
 
-        {message && <p className="text-sm text-emerald-800">{message}</p>}
+        {message && <p className="text-sm text-emerald-700">{message}</p>}
         {error && <p className="text-sm text-rose-700">{error}</p>}
 
         <div className="flex flex-wrap gap-3">
@@ -167,10 +236,10 @@ export function ProductDetailPage() {
           {isOwner && (
             <>
               <Link to={`/products/${id}/edit`}>
-                <Button variant="secondary">Chỉnh sửa</Button>
+                <Button>Sửa sản phẩm</Button>
               </Link>
               <Link to="/my-products">
-                <Button variant="ghost">Quản lý sản phẩm</Button>
+                <Button variant="ghost">Quay lại Đồ của tôi</Button>
               </Link>
             </>
           )}

@@ -5,6 +5,7 @@ using PassDo.Application.Auth.DTOs;
 using PassDo.Application.Auth.Services;
 using PassDo.Application.Common.Exceptions;
 using PassDo.Application.Common.Interfaces;
+using PassDo.Application.Common.Validation;
 using PassDo.Domain.Entities;
 using PassDo.Domain.Enums;
 
@@ -26,10 +27,7 @@ public class RegisterCommandValidator : AbstractValidator<RegisterCommand>
             .EmailAddress()
             .MaximumLength(256);
 
-        RuleFor(x => x.Password)
-            .NotEmpty()
-            .MinimumLength(8)
-            .MaximumLength(100);
+        RuleFor(x => x.Password).MustBeStrongPassword();
 
         RuleFor(x => x.FullName)
             .NotEmpty()

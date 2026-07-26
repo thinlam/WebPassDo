@@ -5,9 +5,14 @@ using PassDo.Application.Auth.DTOs;
 using PassDo.Application.Auth.Services;
 using PassDo.Application.Common.Exceptions;
 using PassDo.Application.Common.Interfaces;
+using PassDo.Domain.Entities;
 
 namespace PassDo.Application.Auth.Commands.Login;
 
+/// <summary>
+/// Login accepts either an email address or a phone number in <paramref name="Email"/>
+/// (property name kept for API/request compatibility - it represents "Email hoặc số điện thoại").
+/// </summary>
 public record LoginCommand(
     string Email,
     string Password,
@@ -18,8 +23,7 @@ public class LoginCommandValidator : AbstractValidator<LoginCommand>
     public LoginCommandValidator()
     {
         RuleFor(x => x.Email)
-            .NotEmpty()
-            .EmailAddress();
+            .NotEmpty();
 
         RuleFor(x => x.Password)
             .NotEmpty();
@@ -44,14 +48,34 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, AuthResponseDto
 
     public async Task<AuthResponseDto> Handle(LoginCommand request, CancellationToken cancellationToken)
     {
-        var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+        var identifier = request.Email.Trim();
 
-        var user = await _context.Users
-            .FirstOrDefaultAsync(x => x.Email == normalizedEmail, cancellationToken);
-
-        if (user is null || !_passwordHasher.Verify(request.Password, user.PasswordHash))
+        User? user;
+        if (identifier.Contains('@'))
         {
-            throw new UnauthorizedException("Invalid email or password.");
+            var normalizedEmail = identifier.ToLowerInvariant();
+            user = await _context.Users
+                .FirstOrDefaultAsync(x => x.Email == normalizedEmail, cancellationToken);
+        }
+        else
+        {
+            user = await _context.Users
+                .FirstOrDefaultAsync(x => x.PhoneNumber == identifier, cancellationToken);
+        }
+
+        if (user is null)
+        {
+            throw new UnauthorizedException("Invalid email/phone number or password.");
+        }
+
+        if (string.IsNullOrEmpty(user.PasswordHash))
+        {
+            throw new UnauthorizedException("This account uses Google sign-in. Please log in with Google.");
+        }
+
+        if (!_passwordHasher.Verify(request.Password, user.PasswordHash))
+        {
+            throw new UnauthorizedException("Invalid email/phone number or password.");
         }
 
         if (!user.IsActive)

@@ -24,14 +24,21 @@ public class ProductDto
     public string? CategoryName { get; set; }
     public Guid SellerId { get; set; }
     public string? SellerName { get; set; }
+    public string? SellerPhoneNumber { get; set; }
     public bool SellerIsOnline { get; set; }
     public DateTime? SellerLastSeenAt { get; set; }
     public Guid? PickupAddressId { get; set; }
     public Guid? BankAccountId { get; set; }
+    public string? PickupAddressFull { get; set; }
+    public string? BankName { get; set; }
+    public string? BankAccountNumberMasked { get; set; }
+    public string? BankAccountHolderName { get; set; }
     public string AcceptedPaymentOption { get; set; } = string.Empty;
     public IReadOnlyList<string> AllowedDeliverySpeeds { get; set; } = Array.Empty<string>();
     public bool HasActiveOrders { get; set; }
+    public int ViewCount { get; set; }
     public DateTime CreatedAt { get; set; }
+    public DateTime? UpdatedAt { get; set; }
     public IReadOnlyList<ProductImageDto> Images { get; set; } = Array.Empty<ProductImageDto>();
 }
 

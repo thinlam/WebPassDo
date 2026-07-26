@@ -20,7 +20,10 @@ public record CreateAddressCommand(
     string StreetAddress,
     string? Note,
     AddressType AddressType,
-    bool IsDefault) : IRequest<UserAddressDto>;
+    bool IsDefault,
+    string? ProvinceCode = null,
+    string? DistrictCode = null,
+    string? WardCode = null) : IRequest<UserAddressDto>;
 public record UpdateAddressCommand(
     Guid Id,
     string RecipientName,
@@ -31,7 +34,10 @@ public record UpdateAddressCommand(
     string StreetAddress,
     string? Note,
     AddressType AddressType,
-    bool IsDefault) : IRequest<UserAddressDto>;
+    bool IsDefault,
+    string? ProvinceCode = null,
+    string? DistrictCode = null,
+    string? WardCode = null) : IRequest<UserAddressDto>;
 public record DeleteAddressCommand(Guid Id) : IRequest;
 public record SetDefaultAddressCommand(Guid Id) : IRequest<UserAddressDto>;
 
@@ -46,6 +52,9 @@ public class AddressCommandValidator : AbstractValidator<CreateAddressCommand>
         RuleFor(x => x.Ward).NotEmpty().MaximumLength(100);
         RuleFor(x => x.StreetAddress).NotEmpty().MaximumLength(500);
         RuleFor(x => x.AddressType).IsInEnum();
+        RuleFor(x => x.ProvinceCode).MaximumLength(20);
+        RuleFor(x => x.DistrictCode).MaximumLength(20);
+        RuleFor(x => x.WardCode).MaximumLength(20);
     }
 }
 
@@ -61,6 +70,9 @@ public class UpdateAddressCommandValidator : AbstractValidator<UpdateAddressComm
         RuleFor(x => x.Ward).NotEmpty().MaximumLength(100);
         RuleFor(x => x.StreetAddress).NotEmpty().MaximumLength(500);
         RuleFor(x => x.AddressType).IsInEnum();
+        RuleFor(x => x.ProvinceCode).MaximumLength(20);
+        RuleFor(x => x.DistrictCode).MaximumLength(20);
+        RuleFor(x => x.WardCode).MaximumLength(20);
     }
 }
 
@@ -107,6 +119,9 @@ public class AddressHandlers :
             Province = request.Province.Trim(),
             District = request.District.Trim(),
             Ward = request.Ward.Trim(),
+            ProvinceCode = string.IsNullOrWhiteSpace(request.ProvinceCode) ? null : request.ProvinceCode.Trim(),
+            DistrictCode = string.IsNullOrWhiteSpace(request.DistrictCode) ? null : request.DistrictCode.Trim(),
+            WardCode = string.IsNullOrWhiteSpace(request.WardCode) ? null : request.WardCode.Trim(),
             StreetAddress = request.StreetAddress.Trim(),
             Note = request.Note?.Trim(),
             AddressType = request.AddressType,
@@ -134,6 +149,9 @@ public class AddressHandlers :
         entity.Province = request.Province.Trim();
         entity.District = request.District.Trim();
         entity.Ward = request.Ward.Trim();
+        entity.ProvinceCode = string.IsNullOrWhiteSpace(request.ProvinceCode) ? null : request.ProvinceCode.Trim();
+        entity.DistrictCode = string.IsNullOrWhiteSpace(request.DistrictCode) ? null : request.DistrictCode.Trim();
+        entity.WardCode = string.IsNullOrWhiteSpace(request.WardCode) ? null : request.WardCode.Trim();
         entity.StreetAddress = request.StreetAddress.Trim();
         entity.Note = request.Note?.Trim();
         entity.AddressType = request.AddressType;
@@ -195,6 +213,9 @@ public class AddressHandlers :
         Province = x.Province,
         District = x.District,
         Ward = x.Ward,
+        ProvinceCode = x.ProvinceCode,
+        DistrictCode = x.DistrictCode,
+        WardCode = x.WardCode,
         StreetAddress = x.StreetAddress,
         Note = x.Note,
         AddressType = x.AddressType.ToString(),

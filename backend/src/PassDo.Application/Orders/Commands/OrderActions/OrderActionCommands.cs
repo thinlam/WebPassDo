@@ -51,12 +51,21 @@ public class HandOverToCourierCommandValidator : AbstractValidator<HandOverToCou
 {
     public HandOverToCourierCommandValidator()
     {
-        RuleFor(x => x.DeliveryPersonName).NotEmpty().MaximumLength(200);
-        RuleFor(x => x.DeliveryPersonPhone).NotEmpty().MaximumLength(30);
-        RuleFor(x => x.DeliveryCompany).NotEmpty().MaximumLength(150);
-        RuleFor(x => x.VehicleNumber).MaximumLength(50).When(x => x.VehicleNumber is not null);
-        RuleFor(x => x.TrackingCode).MaximumLength(100).When(x => x.TrackingCode is not null);
-        RuleFor(x => x.DeliveryNote).MaximumLength(1000).When(x => x.DeliveryNote is not null);
+        RuleFor(x => x.DeliveryPersonName)
+            .Must(v => !string.IsNullOrWhiteSpace(v))
+            .WithMessage("Delivery person name is required.")
+            .MaximumLength(200);
+        RuleFor(x => x.DeliveryPersonPhone)
+            .Must(v => !string.IsNullOrWhiteSpace(v))
+            .WithMessage("Delivery person phone is required.")
+            .MaximumLength(30);
+        RuleFor(x => x.DeliveryCompany)
+            .Must(v => !string.IsNullOrWhiteSpace(v))
+            .WithMessage("Delivery company is required.")
+            .MaximumLength(150);
+        RuleFor(x => x.VehicleNumber).MaximumLength(50).When(x => !string.IsNullOrWhiteSpace(x.VehicleNumber));
+        RuleFor(x => x.TrackingCode).MaximumLength(100).When(x => !string.IsNullOrWhiteSpace(x.TrackingCode));
+        RuleFor(x => x.DeliveryNote).MaximumLength(1000).When(x => !string.IsNullOrWhiteSpace(x.DeliveryNote));
     }
 }
 
@@ -75,17 +84,20 @@ public class OrderActionHandler :
     private readonly ICurrentUserService _currentUser;
     private readonly IShippingCalculator _shipping;
     private readonly IDateTimeProvider _clock;
+    private readonly INotificationService _notifications;
 
     public OrderActionHandler(
         IApplicationDbContext context,
         ICurrentUserService currentUser,
         IShippingCalculator shipping,
-        IDateTimeProvider clock)
+        IDateTimeProvider clock,
+        INotificationService notifications)
     {
         _context = context;
         _currentUser = currentUser;
         _shipping = shipping;
         _clock = clock;
+        _notifications = notifications;
     }
 
     public Task<OrderDetailDto> Handle(ConfirmPaymentCommand request, CancellationToken ct)
@@ -143,7 +155,12 @@ public class OrderActionHandler :
             order.ConfirmedAt = _clock.UtcNow;
             ChangeStatus(order, OrderStatus.AwaitingPreparation, request.Note ?? "Đơn hàng đã được xác nhận.");
             return Task.CompletedTask;
-        }, ct);
+        }, ct, afterSave: order => NotifyBuyer(
+            order,
+            NotificationTypes.OrderConfirmed,
+            "Đơn hàng đã được xác nhận",
+            $"Người bán đã xác nhận đơn hàng {order.OrderCode} - \"{ProductName(order)}\".",
+            ct));
 
     public Task<OrderDetailDto> Handle(RejectOrderCommand request, CancellationToken ct)
         => Transition(request.OrderId, async order =>
@@ -158,7 +175,12 @@ public class OrderActionHandler :
             order.CancelledAt = _clock.UtcNow;
             order.CancellationReason = request.Reason;
             ChangeStatus(order, OrderStatus.Cancelled, request.Reason);
-        }, ct);
+        }, ct, afterSave: order => NotifyBuyer(
+            order,
+            NotificationTypes.OrderCancelled,
+            "Đơn hàng đã bị hủy",
+            $"Người bán đã từ chối đơn hàng {order.OrderCode} - \"{ProductName(order)}\". Lý do: {request.Reason}",
+            ct));
 
     public Task<OrderDetailDto> Handle(CancelOrderCommand request, CancellationToken ct)
         => Transition(request.OrderId, async order =>
@@ -173,7 +195,13 @@ public class OrderActionHandler :
             order.CancelledAt = _clock.UtcNow;
             order.CancellationReason = request.Reason;
             ChangeStatus(order, OrderStatus.Cancelled, request.Reason ?? "Người mua đã hủy đơn.");
-        }, ct);
+        }, ct, afterSave: order => NotifySeller(
+            order,
+            NotificationTypes.OrderCancelled,
+            "Đơn hàng đã bị hủy",
+            $"Người mua đã hủy đơn hàng {order.OrderCode} - \"{ProductName(order)}\"." +
+                (string.IsNullOrWhiteSpace(request.Reason) ? string.Empty : $" Lý do: {request.Reason}"),
+            ct));
 
     public Task<OrderDetailDto> Handle(MarkPreparedCommand request, CancellationToken ct)
         => Transition(request.OrderId, order =>
@@ -192,7 +220,12 @@ public class OrderActionHandler :
 
             ChangeStatus(order, OrderStatus.AwaitingHandover, "Người bán đã chuẩn bị hàng.");
             return Task.CompletedTask;
-        }, ct);
+        }, ct, afterSave: order => NotifyBuyer(
+            order,
+            NotificationTypes.OrderPrepared,
+            "Đơn hàng đã được chuẩn bị",
+            $"Đơn hàng {order.OrderCode} - \"{ProductName(order)}\" đã được chuẩn bị và sẽ sớm được bàn giao vận chuyển.",
+            ct));
 
     public Task<OrderDetailDto> Handle(HandOverToCourierCommand request, CancellationToken ct)
         => Transition(request.OrderId, order =>
@@ -205,18 +238,22 @@ public class OrderActionHandler :
 
             var now = _clock.UtcNow;
 
+            var deliveryPersonName = request.DeliveryPersonName.Trim();
+            var deliveryPersonPhone = request.DeliveryPersonPhone.Trim();
+            var deliveryCompany = request.DeliveryCompany.Trim();
+
             if (order.Shipment is not null)
             {
-                order.Shipment.DeliveryPersonName = request.DeliveryPersonName;
-                order.Shipment.DeliveryPersonPhone = request.DeliveryPersonPhone;
-                order.Shipment.DeliveryCompany = request.DeliveryCompany;
-                order.Shipment.VehicleNumber = request.VehicleNumber;
-                order.Shipment.TrackingCode = request.TrackingCode;
-                order.Shipment.DeliveryNote = request.DeliveryNote;
+                order.Shipment.DeliveryPersonName = deliveryPersonName;
+                order.Shipment.DeliveryPersonPhone = deliveryPersonPhone;
+                order.Shipment.DeliveryCompany = deliveryCompany;
+                order.Shipment.VehicleNumber = request.VehicleNumber?.Trim();
+                order.Shipment.TrackingCode = request.TrackingCode?.Trim();
+                order.Shipment.DeliveryNote = request.DeliveryNote?.Trim();
                 order.Shipment.PickedUpAt = now;
                 order.Shipment.SellerHandedOverAt = now;
                 order.Shipment.HandedOverByUserId = _currentUser.UserId;
-                order.Shipment.CarrierName = request.DeliveryCompany;
+                order.Shipment.CarrierName = deliveryCompany;
             }
 
             order.PickedUpAt = now;
@@ -246,12 +283,19 @@ public class OrderActionHandler :
                 }
             }
 
-            ChangeStatus(order, OrderStatus.Shipping, $"Đã bàn giao cho {request.DeliveryCompany} ({request.DeliveryPersonName}).");
+            ChangeStatus(order, OrderStatus.Shipping, $"Đã bàn giao cho {deliveryCompany} ({deliveryPersonName}).");
             return Task.CompletedTask;
-        }, ct);
+        }, ct, afterSave: order => NotifyBuyer(
+            order,
+            NotificationTypes.OrderHandedOver,
+            "Đơn hàng đang được vận chuyển",
+            $"Đơn hàng {order.OrderCode} - \"{ProductName(order)}\" đã được bàn giao cho đơn vị vận chuyển.",
+            ct));
 
     public Task<OrderDetailDto> Handle(ConfirmDeliveredCommand request, CancellationToken ct)
-        => Transition(request.OrderId, async order =>
+    {
+        var actorId = _currentUser.UserId;
+        return Transition(request.OrderId, async order =>
         {
             var isBuyer = order.BuyerId == _currentUser.UserId;
             var isSeller = order.SellerId == _currentUser.UserId;
@@ -291,7 +335,30 @@ public class OrderActionHandler :
             }
 
             ChangeStatus(order, OrderStatus.Delivered, isBuyer ? "Người mua đã nhận hàng." : "Giao hàng thành công.");
-        }, ct);
+        }, ct, afterSave: async order =>
+        {
+            // Notify the other party (not the actor who just confirmed).
+            var confirmedByBuyer = actorId.HasValue && order.BuyerId == actorId.Value;
+            if (confirmedByBuyer)
+            {
+                await NotifySeller(
+                    order,
+                    NotificationTypes.OrderDelivered,
+                    "Người mua đã xác nhận nhận hàng",
+                    $"Người mua đã xác nhận nhận đơn {order.OrderCode} - \"{ProductName(order)}\".",
+                    ct);
+            }
+            else
+            {
+                await NotifyBuyer(
+                    order,
+                    NotificationTypes.OrderDelivered,
+                    "Đơn hàng đã được giao thành công",
+                    $"Đơn hàng {order.OrderCode} - \"{ProductName(order)}\" đã giao thành công. Cảm ơn bạn đã mua hàng trên PassDo.",
+                    ct);
+            }
+        });
+    }
 
     public Task<OrderDetailDto> Handle(FailDeliveryCommand request, CancellationToken ct)
         => Transition(request.OrderId, order =>
@@ -305,9 +372,18 @@ public class OrderActionHandler :
             order.CancellationReason = request.Reason;
             ChangeStatus(order, OrderStatus.DeliveryFailed, request.Reason);
             return Task.CompletedTask;
-        }, ct);
+        }, ct, afterSave: order => NotifyBuyer(
+            order,
+            NotificationTypes.OrderCancelled,
+            "Giao hàng thất bại",
+            $"Đơn hàng {order.OrderCode} - \"{ProductName(order)}\" giao thất bại. {request.Reason}",
+            ct));
 
-    private async Task<OrderDetailDto> Transition(Guid orderId, Func<Order, Task> action, CancellationToken ct)
+    private async Task<OrderDetailDto> Transition(
+        Guid orderId,
+        Func<Order, Task> action,
+        CancellationToken ct,
+        Func<Order, Task>? afterSave = null)
     {
         if (_currentUser.UserId is null)
         {
@@ -315,6 +391,7 @@ public class OrderActionHandler :
         }
 
         var order = await _context.Orders
+            .Include(x => x.Items)
             .Include(x => x.Payment)
             .Include(x => x.Shipment)
             .FirstOrDefaultAsync(x => x.Id == orderId, ct)
@@ -325,6 +402,11 @@ public class OrderActionHandler :
 
         await action(order);
         await _context.SaveChangesAsync(ct);
+
+        if (afterSave is not null)
+        {
+            await afterSave(order);
+        }
 
         var loaded = await _context.Orders
             .AsNoTracking()
@@ -448,4 +530,12 @@ public class OrderActionHandler :
         => order.BuyerId == _currentUser.UserId
            || order.SellerId == _currentUser.UserId
            || IsAdmin();
+
+    private static string ProductName(Order order) => order.Items.FirstOrDefault()?.ProductName ?? "sản phẩm";
+
+    private Task NotifyBuyer(Order order, string type, string title, string content, CancellationToken ct)
+        => _notifications.NotifyAsync(order.BuyerId, type, title, content, order.Id, "Order", $"/orders/{order.Id}", ct);
+
+    private Task NotifySeller(Order order, string type, string title, string content, CancellationToken ct)
+        => _notifications.NotifyAsync(order.SellerId, type, title, content, order.Id, "Order", $"/orders/{order.Id}", ct);
 }

@@ -21,6 +21,7 @@ export type TypingEvent = {
 
 type PresenceListener = (evt: PresenceChangedEvent) => void
 type TypingListener = (evt: TypingEvent) => void
+type NotificationListener = (evt: unknown) => void
 
 export type PresenceHubActions = {
   connectionState: HubConnectionState
@@ -30,6 +31,7 @@ export type PresenceHubActions = {
   stopTyping: (conversationId: string) => Promise<void>
   subscribePresence: (listener: PresenceListener) => () => void
   subscribeTyping: (listener: { started?: TypingListener; stopped?: TypingListener }) => () => void
+  subscribeNotifications: (listener: NotificationListener) => () => void
 }
 
 type Shared = {
@@ -42,6 +44,7 @@ type Shared = {
     started: Set<TypingListener>
     stopped: Set<TypingListener>
   }
+  notificationListeners: Set<NotificationListener>
   stateListeners: Set<() => void>
 }
 
@@ -52,6 +55,7 @@ const shared: Shared = {
   refCount: 0,
   presenceListeners: new Set(),
   typingListeners: { started: new Set(), stopped: new Set() },
+  notificationListeners: new Set(),
   stateListeners: new Set(),
 }
 
@@ -77,6 +81,9 @@ function buildConnection() {
   })
   conn.on('TypingStopped', (evt: TypingEvent) => {
     for (const cb of shared.typingListeners.stopped) cb(evt)
+  })
+  conn.on('NotificationReceived', (evt: unknown) => {
+    for (const cb of shared.notificationListeners) cb(evt)
   })
 
   conn.onreconnecting(() => notifyState())
@@ -197,6 +204,12 @@ export function usePresenceHub() {
         return () => {
           if (listener.started) shared.typingListeners.started.delete(listener.started)
           if (listener.stopped) shared.typingListeners.stopped.delete(listener.stopped)
+        }
+      },
+      subscribeNotifications: (listener: NotificationListener) => {
+        shared.notificationListeners.add(listener)
+        return () => {
+          shared.notificationListeners.delete(listener)
         }
       },
     }

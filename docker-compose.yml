@@ -37,6 +37,7 @@ services:
       Jwt__Key: ${JWT_KEY}
       Jwt__Issuer: ${JWT_ISSUER}
       Jwt__Audience: ${JWT_AUDIENCE}
+      Google__ClientId: ${Google__ClientId:-}
       FileStorage__RootPath: /app/uploads
       FileStorage__RequestPath: /uploads
       Cors__AllowedOrigins__0: http://localhost:5173
@@ -63,6 +64,7 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
     container_name: passdo-frontend
     restart: unless-stopped
     ports:

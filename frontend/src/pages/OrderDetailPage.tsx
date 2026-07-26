@@ -51,7 +51,6 @@ export function OrderDetailPage() {
   const cancelM = useMutation(act(() => ordersApi.cancel(id, actionNote || undefined)))
   const markPreparedM = useMutation(act(() => ordersApi.markPrepared(id)))
   const confirmDeliveredM = useMutation(act(() => ordersApi.confirmDelivered(id)))
-  const handOverM = useMutation(act(() => ordersApi.handOver(id, handoverForm)))
   const failDeliveryM = useMutation(act(() => ordersApi.failDelivery(id, actionNote || 'Giao thất bại')))
 
   const [proofUrl, setProofUrl] = useState('')
@@ -59,13 +58,73 @@ export function OrderDetailPage() {
 
   const [handoverForm, setHandoverForm] = useState<HandOverPayload>({
     deliveryPersonName: '',
-    phone: '',
-    company: '',
+    deliveryPersonPhone: '',
+    deliveryCompany: '',
     vehicleNumber: '',
     trackingCode: '',
-    note: '',
-    estimatedDeliveryTime: '',
+    deliveryNote: '',
+    estimatedDeliveryFrom: '',
   })
+  const [handoverFieldErrors, setHandoverFieldErrors] = useState<Record<string, string>>({})
+  const [handoverError, setHandoverError] = useState('')
+
+  const handOverM = useMutation({
+    mutationFn: (payload: HandOverPayload) => ordersApi.handOver(id, payload),
+    onSuccess: () => {
+      setShowHandoverModal(false)
+      setHandoverFieldErrors({})
+      setHandoverError('')
+      setHandoverForm({
+        deliveryPersonName: '',
+        deliveryPersonPhone: '',
+        deliveryCompany: '',
+        vehicleNumber: '',
+        trackingCode: '',
+        deliveryNote: '',
+        estimatedDeliveryFrom: '',
+      })
+      invalidate()
+    },
+    onError: (err: unknown) => {
+      setHandoverError(getErrorMessage(err))
+    },
+  })
+
+  const submitHandover = () => {
+    if (handOverM.isPending) return
+
+    const errors: Record<string, string> = {}
+    const name = handoverForm.deliveryPersonName.trim()
+    const phone = handoverForm.deliveryPersonPhone.trim()
+    const company = handoverForm.deliveryCompany.trim()
+
+    if (!name) errors.deliveryPersonName = 'Vui lòng nhập tên người giao'
+    if (!phone) errors.deliveryPersonPhone = 'Vui lòng nhập số điện thoại'
+    if (!company) errors.deliveryCompany = 'Vui lòng nhập đơn vị vận chuyển'
+
+    setHandoverFieldErrors(errors)
+    setHandoverError('')
+    if (Object.keys(errors).length > 0) return
+
+    const payload: HandOverPayload = {
+      deliveryPersonName: name,
+      deliveryPersonPhone: phone,
+      deliveryCompany: company,
+      vehicleNumber: handoverForm.vehicleNumber?.trim() || undefined,
+      trackingCode: handoverForm.trackingCode?.trim() || undefined,
+      deliveryNote: handoverForm.deliveryNote?.trim() || undefined,
+    }
+
+    if (handoverForm.estimatedDeliveryFrom) {
+      const eta = new Date(handoverForm.estimatedDeliveryFrom)
+      if (!Number.isNaN(eta.getTime())) {
+        payload.estimatedDeliveryFrom = eta.toISOString()
+        payload.estimatedDeliveryTo = eta.toISOString()
+      }
+    }
+
+    handOverM.mutate(payload)
+  }
 
   if (query.isLoading) return <Spinner />
   if (!query.data) return <EmptyState title="Không tìm thấy đơn hàng" />
@@ -145,18 +204,39 @@ export function OrderDetailPage() {
         </Card>
 
         {/* Courier info for buyer when Shipping */}
-        {isBuyer && o.status === 'Shipping' && courierInfo && (courierInfo.shipperName || courierInfo.shipperPhone) && (
+        {isBuyer &&
+          o.status === 'Shipping' &&
+          courierInfo &&
+          (courierInfo.deliveryPersonName ||
+            courierInfo.deliveryPersonPhone ||
+            courierInfo.shipperName ||
+            courierInfo.shipperPhone) && (
           <Card title="Thông tin vận chuyển">
             <div className="space-y-2 text-sm">
-              {courierInfo.shipperName && <p>Người giao: {courierInfo.shipperName}</p>}
-              {courierInfo.shipperPhone && (
+              {(courierInfo.deliveryPersonName || courierInfo.shipperName) && (
+                <p>Người giao: {courierInfo.deliveryPersonName || courierInfo.shipperName}</p>
+              )}
+              {(courierInfo.deliveryPersonPhone || courierInfo.shipperPhone) && (
                 <div className="flex gap-3">
-                  <span>SĐT: {courierInfo.shipperPhone}</span>
-                  <a href={`tel:${courierInfo.shipperPhone}`} className="text-forest hover:underline">Gọi</a>
-                  <a href={`sms:${courierInfo.shipperPhone}`} className="text-forest hover:underline">SMS</a>
+                  <span>SĐT: {courierInfo.deliveryPersonPhone || courierInfo.shipperPhone}</span>
+                  <a
+                    href={`tel:${courierInfo.deliveryPersonPhone || courierInfo.shipperPhone}`}
+                    className="text-forest hover:underline"
+                  >
+                    Gọi
+                  </a>
+                  <a
+                    href={`sms:${courierInfo.deliveryPersonPhone || courierInfo.shipperPhone}`}
+                    className="text-forest hover:underline"
+                  >
+                    SMS
+                  </a>
                 </div>
               )}
-              {courierInfo.carrierName && <p>Đơn vị: {courierInfo.carrierName}</p>}
+              {(courierInfo.deliveryCompany || courierInfo.carrierName) && (
+                <p>Đơn vị: {courierInfo.deliveryCompany || courierInfo.carrierName}</p>
+              )}
+              {courierInfo.vehicleNumber && <p>Biển số: {courierInfo.vehicleNumber}</p>}
               {courierInfo.trackingCode && <p>Mã vận đơn: {courierInfo.trackingCode}</p>}
               {courierInfo.deliveryNote && <p>Ghi chú: {courierInfo.deliveryNote}</p>}
             </div>
@@ -254,9 +334,9 @@ export function OrderDetailPage() {
                 </Button>
               </div>
             )}
-            {isBuyer && o.status === 'Delivered' && (
+            {isBuyer && o.status === 'Shipping' && (
               <Button onClick={() => confirmDeliveredM.mutate()} disabled={confirmDeliveredM.isPending}>
-                Xác nhận đã nhận
+                {confirmDeliveredM.isPending ? 'Đang xác nhận...' : 'Xác nhận đã nhận hàng'}
               </Button>
             )}
             {isBuyer && ['AwaitingPayment', 'PendingConfirmation'].includes(o.status) && (
@@ -297,9 +377,14 @@ export function OrderDetailPage() {
               </Button>
             )}
             {isSeller && o.status === 'Shipping' && (
-              <Button variant="danger" onClick={() => failDeliveryM.mutate()} disabled={failDeliveryM.isPending}>
-                Giao thất bại
-              </Button>
+              <>
+                <Button onClick={() => confirmDeliveredM.mutate()} disabled={confirmDeliveredM.isPending}>
+                  {confirmDeliveredM.isPending ? 'Đang xác nhận...' : 'Giao thành công'}
+                </Button>
+                <Button variant="danger" onClick={() => failDeliveryM.mutate()} disabled={failDeliveryM.isPending}>
+                  Giao thất bại
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -308,24 +393,27 @@ export function OrderDetailPage() {
       {/* Handover Modal */}
       {showHandoverModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md space-y-4 rounded-2xl bg-white p-6 shadow-xl">
+          <div className="w-full max-w-md space-y-4 rounded-2xl border border-line bg-surface p-6 shadow-xl">
             <h2 className="font-display text-xl text-ink">Bàn giao đơn hàng</h2>
             <Input
               label="Tên người giao *"
               value={handoverForm.deliveryPersonName}
               onChange={(e) => setHandoverForm((f) => ({ ...f, deliveryPersonName: e.target.value }))}
+              error={handoverFieldErrors.deliveryPersonName}
               required
             />
             <Input
               label="Số điện thoại *"
-              value={handoverForm.phone}
-              onChange={(e) => setHandoverForm((f) => ({ ...f, phone: e.target.value }))}
+              value={handoverForm.deliveryPersonPhone}
+              onChange={(e) => setHandoverForm((f) => ({ ...f, deliveryPersonPhone: e.target.value }))}
+              error={handoverFieldErrors.deliveryPersonPhone}
               required
             />
             <Input
               label="Đơn vị vận chuyển *"
-              value={handoverForm.company}
-              onChange={(e) => setHandoverForm((f) => ({ ...f, company: e.target.value }))}
+              value={handoverForm.deliveryCompany}
+              onChange={(e) => setHandoverForm((f) => ({ ...f, deliveryCompany: e.target.value }))}
+              error={handoverFieldErrors.deliveryCompany}
               required
             />
             <Input
@@ -340,23 +428,29 @@ export function OrderDetailPage() {
             />
             <Input
               label="Ghi chú"
-              value={handoverForm.note}
-              onChange={(e) => setHandoverForm((f) => ({ ...f, note: e.target.value }))}
+              value={handoverForm.deliveryNote}
+              onChange={(e) => setHandoverForm((f) => ({ ...f, deliveryNote: e.target.value }))}
             />
             <Input
               label="Thời gian dự kiến giao"
               type="datetime-local"
-              value={handoverForm.estimatedDeliveryTime}
-              onChange={(e) => setHandoverForm((f) => ({ ...f, estimatedDeliveryTime: e.target.value }))}
+              value={handoverForm.estimatedDeliveryFrom}
+              onChange={(e) => setHandoverForm((f) => ({ ...f, estimatedDeliveryFrom: e.target.value }))}
             />
+            {handoverError && <p className="text-sm text-rose-700">{handoverError}</p>}
             <div className="flex gap-3">
-              <Button
-                onClick={() => handOverM.mutate()}
-                disabled={!handoverForm.deliveryPersonName || !handoverForm.phone || !handoverForm.company || handOverM.isPending}
-              >
+              <Button onClick={submitHandover} disabled={handOverM.isPending}>
                 {handOverM.isPending ? 'Đang gửi...' : 'Xác nhận bàn giao'}
               </Button>
-              <Button variant="ghost" onClick={() => setShowHandoverModal(false)}>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  if (handOverM.isPending) return
+                  setShowHandoverModal(false)
+                  setHandoverError('')
+                  setHandoverFieldErrors({})
+                }}
+              >
                 Hủy
               </Button>
             </div>

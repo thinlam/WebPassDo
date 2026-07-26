@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using PassDo.Application.Common.Exceptions;
 using PassDo.Application.Common.Interfaces;
+using PassDo.Domain.Constants;
 using PassDo.Domain.Entities;
 
 namespace PassDo.Application.Chat;
@@ -23,12 +24,18 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Mes
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUser;
     private readonly IDateTimeProvider _clock;
+    private readonly INotificationService _notifications;
 
-    public SendMessageCommandHandler(IApplicationDbContext context, ICurrentUserService currentUser, IDateTimeProvider clock)
+    public SendMessageCommandHandler(
+        IApplicationDbContext context,
+        ICurrentUserService currentUser,
+        IDateTimeProvider clock,
+        INotificationService notifications)
     {
         _context = context;
         _currentUser = currentUser;
         _clock = clock;
+        _notifications = notifications;
     }
 
     public async Task<MessageDto> Handle(SendMessageCommand request, CancellationToken cancellationToken)
@@ -63,12 +70,32 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Mes
         var sender = await _context.Users.AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == userId, cancellationToken);
 
+        var recipientId = conversation.BuyerId == userId
+            ? conversation.SellerId
+            : conversation.BuyerId;
+
+        var preview = message.Content.Length > 120
+            ? message.Content[..117] + "..."
+            : message.Content;
+
+        var senderName = sender?.FullName ?? "Ai đó";
+
+        await _notifications.NotifyAsync(
+            recipientId,
+            NotificationTypes.NewMessage,
+            $"Tin nhắn mới từ {senderName}",
+            preview,
+            conversation.Id,
+            "Conversation",
+            $"/messages/{conversation.Id}",
+            cancellationToken);
+
         return new MessageDto
         {
             Id = message.Id,
             ConversationId = message.ConversationId,
             SenderId = message.SenderId,
-            SenderName = sender?.FullName ?? string.Empty,
+            SenderName = senderName,
             Content = message.Content,
             IsRead = false,
             CreatedAt = message.CreatedAt

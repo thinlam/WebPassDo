@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using PassDo.Application.Common.Interfaces;
 using PassDo.Application.Common.Options;
+using PassDo.Application.Locations;
 using PassDo.Domain.Constants;
 using PassDo.Infrastructure.Health;
 using PassDo.Infrastructure.Identity;
@@ -24,6 +25,7 @@ public static class DependencyInjection
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
         services.Configure<FileStorageOptions>(configuration.GetSection(FileStorageOptions.SectionName));
         services.Configure<ShippingOptions>(configuration.GetSection(ShippingOptions.SectionName));
+        services.Configure<GoogleAuthOptions>(configuration.GetSection(GoogleAuthOptions.SectionName));
 
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
@@ -38,9 +40,19 @@ public static class DependencyInjection
         services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddScoped<IPasswordHasher, PasswordHasherService>();
+        services.AddScoped<IGoogleTokenValidator, GoogleTokenValidator>();
+        services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<INotificationRealtimePublisher, NullNotificationRealtimePublisher>();
         services.AddSingleton<IShippingCalculator, ShippingCalculator>();
         services.AddSingleton<LocalFileStorageService>();
         services.AddSingleton<IFileStorageService>(provider => provider.GetRequiredService<LocalFileStorageService>());
+
+        services.AddMemoryCache();
+        services.AddHttpClient<IVietnamLocationService, VietnamLocationService>(client =>
+        {
+            client.BaseAddress = new Uri("https://provinces.open-api.vn/api/");
+            client.Timeout = TimeSpan.FromSeconds(15);
+        });
 
         services.AddHttpContextAccessor();
 

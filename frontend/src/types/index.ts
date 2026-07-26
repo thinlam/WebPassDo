@@ -58,12 +58,13 @@ export type OrderStatus =
 
 export type HandOverPayload = {
   deliveryPersonName: string
-  phone: string
-  company: string
+  deliveryPersonPhone: string
+  deliveryCompany: string
   vehicleNumber?: string
   trackingCode?: string
-  note?: string
-  estimatedDeliveryTime?: string
+  deliveryNote?: string
+  estimatedDeliveryFrom?: string
+  estimatedDeliveryTo?: string
 }
 
 export type Conversation = {
@@ -131,14 +132,21 @@ export type Product = {
   categoryName?: string | null
   sellerId: string
   sellerName?: string | null
+  sellerPhoneNumber?: string | null
   sellerIsOnline?: boolean
   sellerLastSeenAt?: string | null
   pickupAddressId?: string | null
   bankAccountId?: string | null
+  pickupAddressFull?: string | null
+  bankName?: string | null
+  bankAccountNumberMasked?: string | null
+  bankAccountHolderName?: string | null
   acceptedPaymentOption: AcceptedPaymentOption | string
   allowedDeliverySpeeds: string[]
   hasActiveOrders: boolean
+  viewCount?: number
   createdAt: string
+  updatedAt?: string | null
   images: ProductImage[]
 }
 
@@ -161,6 +169,9 @@ export type UserAddress = {
   province: string
   district: string
   ward: string
+  provinceCode?: string | null
+  districtCode?: string | null
+  wardCode?: string | null
   streetAddress: string
   note?: string | null
   addressType: AddressType | string
@@ -251,6 +262,10 @@ export type OrderShipment = {
   shipperReceivedAt?: string | null
   deliveredAt?: string | null
   deliveryNote?: string | null
+  deliveryCompany?: string | null
+  deliveryPersonName?: string | null
+  deliveryPersonPhone?: string | null
+  vehicleNumber?: string | null
   shipperId?: string | null
   shipperName?: string | null
   shipperPhone?: string | null

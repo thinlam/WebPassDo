@@ -98,8 +98,9 @@ public class FavoriteAndOrderHandlerTests
         var shipping = new ShippingCalculator(Options.Create(new ShippingOptions()));
         var clock = new Mock<IDateTimeProvider>();
         clock.Setup(x => x.UtcNow).Returns(DateTime.UtcNow);
+        var notifications = new Mock<INotificationService>();
 
-        var handler = new CreateOrderCommandHandler(db, currentUser.Object, shipping, clock.Object);
+        var handler = new CreateOrderCommandHandler(db, currentUser.Object, shipping, clock.Object, notifications.Object);
         var act = async () => await handler.Handle(
             new CreateOrderCommand(
                 product.Id,

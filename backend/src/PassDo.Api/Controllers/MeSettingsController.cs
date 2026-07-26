@@ -37,7 +37,10 @@ public class MeSettingsController : ControllerBase
             request.StreetAddress,
             request.Note,
             request.AddressType,
-            request.IsDefault));
+            request.IsDefault,
+            request.ProvinceCode,
+            request.DistrictCode,
+            request.WardCode));
         return Ok(ApiResponse<object>.Ok(result, "Address created."));
     }
 
@@ -54,7 +57,10 @@ public class MeSettingsController : ControllerBase
             request.StreetAddress,
             request.Note,
             request.AddressType,
-            request.IsDefault));
+            request.IsDefault,
+            request.ProvinceCode,
+            request.DistrictCode,
+            request.WardCode));
         return Ok(ApiResponse<object>.Ok(result, "Address updated."));
     }
 

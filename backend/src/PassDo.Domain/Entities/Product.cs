@@ -20,6 +20,7 @@ public class Product : BaseEntity
     public AcceptedPaymentOption AcceptedPaymentOption { get; set; } = AcceptedPaymentOption.Both;
     /// <summary>Comma-separated DeliverySpeed values, e.g. "Express,Standard,Intercity".</summary>
     public string AllowedDeliverySpeeds { get; set; } = "Standard,Intercity";
+    public int ViewCount { get; set; }
 
     public Category Category { get; set; } = null!;
     public User Seller { get; set; } = null!;
