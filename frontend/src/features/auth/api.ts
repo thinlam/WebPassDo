@@ -13,6 +13,9 @@ export const authApi = {
   login: (payload: { email: string; password: string }) =>
     unwrap(apiClient.post<ApiResponse<AuthSession>>('/auth/login', payload)),
 
+  googleLogin: (idToken: string) =>
+    unwrap(apiClient.post<ApiResponse<AuthSession>>('/auth/google', { idToken })),
+
   refreshToken: (refreshToken: string) =>
     unwrap(apiClient.post<ApiResponse<AuthSession>>('/auth/refresh-token', { refreshToken })),
 
@@ -23,4 +26,7 @@ export const authApi = {
 
   updateMe: (payload: { fullName: string; phoneNumber?: string; avatarUrl?: string }) =>
     unwrap(apiClient.put<ApiResponse<AuthUser>>('/users/me', payload)),
+
+  changePassword: (payload: { currentPassword: string; newPassword: string }) =>
+    unwrap(apiClient.post<ApiResponse<unknown>>('/auth/change-password', payload)),
 }

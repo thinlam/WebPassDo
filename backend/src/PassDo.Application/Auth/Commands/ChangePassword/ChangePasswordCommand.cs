@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using PassDo.Application.Common.Exceptions;
 using PassDo.Application.Common.Interfaces;
+using PassDo.Application.Common.Validation;
 
 namespace PassDo.Application.Auth.Commands.ChangePassword;
 
@@ -13,7 +14,7 @@ public class ChangePasswordCommandValidator : AbstractValidator<ChangePasswordCo
     public ChangePasswordCommandValidator()
     {
         RuleFor(x => x.CurrentPassword).NotEmpty();
-        RuleFor(x => x.NewPassword).NotEmpty().MinimumLength(6).MaximumLength(100);
+        RuleFor(x => x.NewPassword).MustBeStrongPassword();
     }
 }
 

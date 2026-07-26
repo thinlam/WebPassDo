@@ -28,7 +28,9 @@ public static class ProductMapper
             .Select(x => x.ToString())
             .ToList(),
         HasActiveOrders = hasActiveOrders,
+        ViewCount = product.ViewCount,
         CreatedAt = product.CreatedAt,
+        UpdatedAt = product.UpdatedAt,
         Images = product.Images
             .OrderByDescending(x => x.IsPrimary)
             .ThenBy(x => x.DisplayOrder)

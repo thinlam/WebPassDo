@@ -8,6 +8,9 @@ public class UserAddressDto
     public string Province { get; set; } = string.Empty;
     public string District { get; set; } = string.Empty;
     public string Ward { get; set; } = string.Empty;
+    public string? ProvinceCode { get; set; }
+    public string? DistrictCode { get; set; }
+    public string? WardCode { get; set; }
     public string StreetAddress { get; set; } = string.Empty;
     public string? Note { get; set; }
     public string AddressType { get; set; } = string.Empty;

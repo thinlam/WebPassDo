@@ -11,7 +11,10 @@ public record UpsertAddressRequest(
     string StreetAddress,
     string? Note,
     AddressType AddressType,
-    bool IsDefault);
+    bool IsDefault,
+    string? ProvinceCode = null,
+    string? DistrictCode = null,
+    string? WardCode = null);
 
 public record UpsertBankAccountRequest(
     string BankName,

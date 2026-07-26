@@ -33,6 +33,13 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(x => x.AvatarUrl)
             .HasMaxLength(500);
 
+        builder.Property(x => x.GoogleSubject)
+            .HasMaxLength(128);
+
+        builder.HasIndex(x => x.GoogleSubject)
+            .IsUnique()
+            .HasFilter("[GoogleSubject] IS NOT NULL");
+
         builder.Property(x => x.Role)
             .HasConversion<string>()
             .HasMaxLength(50)

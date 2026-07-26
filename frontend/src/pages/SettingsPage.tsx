@@ -13,6 +13,10 @@ import {
   Select,
   Spinner,
 } from '../components/common/ui'
+import {
+  VietnamAddressFields,
+  type VietnamAddressValue,
+} from '../components/address/VietnamAddressFields'
 import { getErrorMessage } from '../utils/api'
 import type { AddressType, UserAddress, UserBankAccount } from '../types'
 
@@ -143,29 +147,59 @@ function AddressForm({
   onDone: () => void
   onCancel: () => void
 }) {
-  const [form, setForm] = useState({
-    recipientName: address?.recipientName ?? '',
-    phoneNumber: address?.phoneNumber ?? '',
-    province: address?.province ?? '',
-    district: address?.district ?? '',
-    ward: address?.ward ?? '',
-    streetAddress: address?.streetAddress ?? '',
-    note: address?.note ?? '',
-    addressType: (address?.addressType ?? 'Home') as AddressType,
-    isDefault: address?.isDefault ?? false,
+  const [recipientName, setRecipientName] = useState(address?.recipientName ?? '')
+  const [phoneNumber, setPhoneNumber] = useState(address?.phoneNumber ?? '')
+  const [note, setNote] = useState(address?.note ?? '')
+  const [addressType, setAddressType] = useState<AddressType>(
+    (address?.addressType as AddressType) ?? 'Home',
+  )
+  const [isDefault, setIsDefault] = useState(address?.isDefault ?? false)
+  const [vnAddress, setVnAddress] = useState<VietnamAddressValue>({
+    provinceCode: address?.provinceCode ?? '',
+    provinceName: address?.province ?? '',
+    districtCode: address?.districtCode ?? '',
+    districtName: address?.district ?? '',
+    wardCode: address?.wardCode ?? '',
+    wardName: address?.ward ?? '',
+    addressLine: address?.streetAddress ?? '',
   })
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    const errors: Record<string, string> = {}
+    if (!recipientName.trim()) errors.recipientName = 'Nhập tên người nhận'
+    if (!phoneNumber.trim()) errors.phoneNumber = 'Nhập số điện thoại'
+    if (!vnAddress.provinceName) errors.provinceName = 'Chọn tỉnh/thành phố'
+    if (!vnAddress.districtName) errors.districtName = 'Chọn quận/huyện'
+    if (!vnAddress.wardName) errors.wardName = 'Chọn phường/xã'
+    if (!vnAddress.addressLine.trim()) errors.addressLine = 'Nhập địa chỉ chi tiết'
+    setFieldErrors(errors)
+    if (Object.keys(errors).length > 0) return
+
     setSaving(true)
     setError('')
     try {
+      const payload = {
+        recipientName: recipientName.trim(),
+        phoneNumber: phoneNumber.trim(),
+        province: vnAddress.provinceName,
+        district: vnAddress.districtName,
+        ward: vnAddress.wardName,
+        provinceCode: vnAddress.provinceCode || null,
+        districtCode: vnAddress.districtCode || null,
+        wardCode: vnAddress.wardCode || null,
+        streetAddress: vnAddress.addressLine.trim(),
+        note: note.trim() || undefined,
+        addressType,
+        isDefault,
+      }
       if (address) {
-        await addressesApi.update(address.id, form)
+        await addressesApi.update(address.id, payload)
       } else {
-        await addressesApi.create(form)
+        await addressesApi.create(payload)
       }
       onDone()
     } catch (err) {
@@ -175,12 +209,9 @@ function AddressForm({
     }
   }
 
-  const set = (field: string, value: string | boolean) =>
-    setForm((f) => ({ ...f, [field]: value }))
-
   return (
     <form
-      className="max-w-lg space-y-4 rounded-2xl border border-line bg-white/80 p-6"
+      className="max-w-lg space-y-4 rounded-2xl border border-line bg-surface/80 p-6"
       onSubmit={handleSubmit}
     >
       <h2 className="font-display text-xl text-ink">
@@ -188,60 +219,37 @@ function AddressForm({
       </h2>
       <Input
         label="Tên người nhận"
-        value={form.recipientName}
-        onChange={(e) => set('recipientName', e.target.value)}
+        value={recipientName}
+        onChange={(e) => setRecipientName(e.target.value)}
+        error={fieldErrors.recipientName}
         required
       />
       <Input
         label="Số điện thoại"
-        value={form.phoneNumber}
-        onChange={(e) => set('phoneNumber', e.target.value)}
+        value={phoneNumber}
+        onChange={(e) => setPhoneNumber(e.target.value)}
+        error={fieldErrors.phoneNumber}
         required
       />
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Input
-          label="Tỉnh/Thành phố"
-          value={form.province}
-          onChange={(e) => set('province', e.target.value)}
-          required
-        />
-        <Input
-          label="Quận/Huyện"
-          value={form.district}
-          onChange={(e) => set('district', e.target.value)}
-          required
-        />
-        <Input
-          label="Phường/Xã"
-          value={form.ward}
-          onChange={(e) => set('ward', e.target.value)}
-          required
-        />
-      </div>
-      <Input
-        label="Địa chỉ chi tiết"
-        value={form.streetAddress}
-        onChange={(e) => set('streetAddress', e.target.value)}
-        required
+      <VietnamAddressFields
+        value={vnAddress}
+        onChange={setVnAddress}
+        errors={fieldErrors}
       />
-      <Input
-        label="Ghi chú"
-        value={form.note}
-        onChange={(e) => set('note', e.target.value)}
-      />
+      <Input label="Ghi chú" value={note} onChange={(e) => setNote(e.target.value)} />
       <Select
         label="Loại địa chỉ"
-        value={form.addressType}
-        onChange={(e) => set('addressType', e.target.value)}
+        value={addressType}
+        onChange={(e) => setAddressType(e.target.value as AddressType)}
       >
         <option value="Home">Nhà</option>
         <option value="Office">Văn phòng</option>
       </Select>
-      <label className="flex items-center gap-2 text-sm">
+      <label className="flex items-center gap-2 text-sm text-ink">
         <input
           type="checkbox"
-          checked={form.isDefault}
-          onChange={(e) => set('isDefault', e.target.checked)}
+          checked={isDefault}
+          onChange={(e) => setIsDefault(e.target.checked)}
           className="accent-forest"
         />
         Đặt làm mặc định

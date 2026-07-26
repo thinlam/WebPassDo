@@ -1,7 +1,9 @@
 using Microsoft.OpenApi.Models;
 using PassDo.Api.Hubs;
 using PassDo.Api.Middleware;
+using PassDo.Api.Realtime;
 using PassDo.Application;
+using PassDo.Application.Common.Interfaces;
 using PassDo.Infrastructure;
 using PassDo.Infrastructure.Options;
 using PassDo.Infrastructure.Persistence;
@@ -12,6 +14,7 @@ builder.Configuration.AddEnvironmentVariables();
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddScoped<INotificationRealtimePublisher, SignalRNotificationRealtimePublisher>();
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>

@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using PassDo.Application.Common.Exceptions;
 using PassDo.Application.Common.Interfaces;
+using PassDo.Application.Orders.Mappings;
 using PassDo.Application.Presence;
 using PassDo.Application.Products.DTOs;
 using PassDo.Application.Products.Mappings;
@@ -31,6 +32,8 @@ public class GetProductByIdQueryHandler : IRequestHandler<GetProductByIdQuery, P
             .AsNoTracking()
             .Include(x => x.Category)
             .Include(x => x.Images)
+            .Include(x => x.PickupAddress)
+            .Include(x => x.BankAccount)
             .FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
 
         if (product is null)
@@ -48,6 +51,15 @@ public class GetProductByIdQueryHandler : IRequestHandler<GetProductByIdQuery, P
             throw new NotFoundException("Product", request.Id);
         }
 
+        // Count a view for public browsing (skip seller viewing their own listing).
+        if (!isOwner && product.Status == ProductStatus.Available)
+        {
+            var tracked = await _context.Products.FirstAsync(x => x.Id == product.Id, cancellationToken);
+            tracked.ViewCount += 1;
+            await _context.SaveChangesAsync(cancellationToken);
+            product.ViewCount = tracked.ViewCount;
+        }
+
         var seller = await _context.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == product.SellerId, cancellationToken);
@@ -61,6 +73,27 @@ public class GetProductByIdQueryHandler : IRequestHandler<GetProductByIdQuery, P
         dto.SellerName = seller?.FullName;
         dto.SellerIsOnline = PresenceRules.IsOnline(seller?.LastSeenAt, DateTime.UtcNow);
         dto.SellerLastSeenAt = seller?.LastSeenAt;
+
+        if (isOwner || isAdmin)
+        {
+            dto.SellerPhoneNumber = seller?.PhoneNumber;
+            if (product.PickupAddress is not null)
+            {
+                dto.PickupAddressFull = OrderMapper.FormatAddress(
+                    product.PickupAddress.StreetAddress,
+                    product.PickupAddress.Ward,
+                    product.PickupAddress.District,
+                    product.PickupAddress.Province);
+            }
+
+            if (product.BankAccount is not null)
+            {
+                dto.BankName = product.BankAccount.BankName;
+                dto.BankAccountNumberMasked = OrderMapper.MaskAccountNumber(product.BankAccount.AccountNumber);
+                dto.BankAccountHolderName = product.BankAccount.AccountHolderName;
+            }
+        }
+
         return dto;
     }
 }

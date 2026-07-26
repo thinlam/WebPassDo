@@ -27,6 +27,7 @@ public class PresenceHub : Hub
     {
         if (UserId is Guid uid)
         {
+            await Groups.AddToGroupAsync(Context.ConnectionId, UserGroupName(uid));
             await _tracker.TouchAsync(uid);
             await Clients.Others.SendAsync("PresenceChanged", new
             {
@@ -43,6 +44,7 @@ public class PresenceHub : Hub
     {
         if (UserId is Guid uid)
         {
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, UserGroupName(uid));
             await _tracker.TouchAsync(uid);
             // Clients will flip to offline after 45s without heartbeats; still emit lastSeen
             await Clients.Others.SendAsync("PresenceChanged", new
@@ -97,5 +99,7 @@ public class PresenceHub : Hub
     }
 
     private static string GroupName(Guid id) => $"conversation:{id}";
+
+    public static string UserGroupName(Guid userId) => $"user:{userId}";
 }
 

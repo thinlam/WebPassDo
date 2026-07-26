@@ -64,6 +64,9 @@ export function MyProductsPage() {
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
+                <Link to={`/products/${item.id}`}>
+                  <Button variant="secondary">Xem chi tiết</Button>
+                </Link>
                 <Link to={`/products/${item.id}/edit`}>
                   <Button variant="secondary">Sửa</Button>
                 </Link>
@@ -72,7 +75,7 @@ export function MyProductsPage() {
                     variant="secondary"
                     onClick={() => statusMutation.mutate({ id: item.id, status: 'Available' })}
                   >
-                    Mở bán
+                    Hiện
                   </Button>
                 ) : null}
                 {item.status === 'Available' ? (

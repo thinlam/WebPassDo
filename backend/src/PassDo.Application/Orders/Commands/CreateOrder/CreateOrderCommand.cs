@@ -2,11 +2,13 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using PassDo.Application.Common.Exceptions;
+using PassDo.Application.Common.Helpers;
 using PassDo.Application.Common.Interfaces;
 using PassDo.Application.Common.Options;
 using PassDo.Application.Orders.DTOs;
 using PassDo.Application.Orders.Helpers;
 using PassDo.Application.Orders.Mappings;
+using PassDo.Domain.Constants;
 using PassDo.Domain.Entities;
 using PassDo.Domain.Enums;
 
@@ -39,17 +41,20 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
     private readonly ICurrentUserService _currentUserService;
     private readonly IShippingCalculator _shippingCalculator;
     private readonly IDateTimeProvider _dateTimeProvider;
+    private readonly INotificationService _notificationService;
 
     public CreateOrderCommandHandler(
         IApplicationDbContext context,
         ICurrentUserService currentUserService,
         IShippingCalculator shippingCalculator,
-        IDateTimeProvider dateTimeProvider)
+        IDateTimeProvider dateTimeProvider,
+        INotificationService notificationService)
     {
         _context = context;
         _currentUserService = currentUserService;
         _shippingCalculator = shippingCalculator;
         _dateTimeProvider = dateTimeProvider;
+        _notificationService = notificationService;
     }
 
     public async Task<OrderDetailDto> Handle(CreateOrderCommand request, CancellationToken cancellationToken)
@@ -249,6 +254,16 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
 
         _context.Orders.Add(order);
         await _context.SaveChangesAsync(cancellationToken);
+
+        await _notificationService.NotifyAsync(
+            product.SellerId,
+            NotificationTypes.NewOrder,
+            "Bạn có một đơn hàng mới",
+            $"Một khách hàng vừa đặt mua sản phẩm \"{product.Name}\" với tổng giá trị {MoneyFormatter.FormatVnd(grandTotal)}. Đơn hàng đang chờ bạn xác nhận.",
+            order.Id,
+            "Order",
+            $"/orders/{order.Id}",
+            cancellationToken);
 
         var created = await LoadOrder(order.Id, cancellationToken);
         return OrderMapper.ToDetailDto(created, includeSensitiveContact: true, includeFullBankAccount: true);

@@ -40,7 +40,7 @@ export function Input({
     <label className="block space-y-1.5">
       {label && <span className="text-sm font-medium text-ink">{label}</span>}
       <input
-        className={`w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-forest/30 focus:ring-2 ${className}`}
+        className={`w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink outline-none ring-forest/30 focus:ring-2 ${className}`}
         {...props}
       />
       {error && <span className="text-xs text-rose-700">{error}</span>}
@@ -58,7 +58,7 @@ export function TextArea({
     <label className="block space-y-1.5">
       {label && <span className="text-sm font-medium text-ink">{label}</span>}
       <textarea
-        className={`w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-forest/30 focus:ring-2 ${className}`}
+        className={`w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink outline-none ring-forest/30 focus:ring-2 ${className}`}
         {...props}
       />
       {error && <span className="text-xs text-rose-700">{error}</span>}
@@ -81,7 +81,7 @@ export function Select({
     <label className="block space-y-1.5">
       {label && <span className="text-sm font-medium text-ink">{label}</span>}
       <select
-        className={`w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none ring-forest/30 focus:ring-2 ${className}`}
+        className={`w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink outline-none ring-forest/30 focus:ring-2 ${className}`}
         {...props}
       >
         {children}
@@ -105,7 +105,7 @@ export function PageHeader({ title, description, actions }: { title: string; des
 
 export function EmptyState({ title, description }: { title: string; description?: string }) {
   return (
-    <div className="rounded-xl border border-dashed border-line bg-white/70 px-6 py-16 text-center">
+    <div className="rounded-xl border border-dashed border-line bg-surface/70 px-6 py-16 text-center">
       <p className="font-display text-xl text-ink">{title}</p>
       {description && <p className="mt-2 text-sm text-muted">{description}</p>}
     </div>
@@ -123,9 +123,9 @@ export function Spinner() {
 export function Badge({ children, tone = 'neutral' }: { children: ReactNode; tone?: 'neutral' | 'success' | 'warn' | 'danger' }) {
   const styles = {
     neutral: 'bg-sand text-ink',
-    success: 'bg-emerald-100 text-emerald-900',
-    warn: 'bg-amber-100 text-amber-900',
-    danger: 'bg-rose-100 text-rose-900',
+    success: 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-200',
+    warn: 'bg-amber-500/15 text-amber-900 dark:text-amber-200',
+    danger: 'bg-rose-500/15 text-rose-900 dark:text-rose-200',
   }[tone]
   return <span className={`inline-flex rounded-md px-2 py-0.5 text-xs font-medium ${styles}`}>{children}</span>
 }

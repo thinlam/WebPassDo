@@ -29,3 +29,6 @@ frontend/.env.local
 
 # Agent scratch (briefs/reports); keep docs/superpowers specs & plans
 .superpowers/
+
+# Google OAuth downloaded credentials (do not commit)
+client_secret*.json

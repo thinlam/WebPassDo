@@ -16,6 +16,9 @@ public class UserAddressConfiguration : IEntityTypeConfiguration<UserAddress>
         builder.Property(x => x.Province).HasMaxLength(100).IsRequired();
         builder.Property(x => x.District).HasMaxLength(100).IsRequired();
         builder.Property(x => x.Ward).HasMaxLength(100).IsRequired();
+        builder.Property(x => x.ProvinceCode).HasMaxLength(20);
+        builder.Property(x => x.DistrictCode).HasMaxLength(20);
+        builder.Property(x => x.WardCode).HasMaxLength(20);
         builder.Property(x => x.StreetAddress).HasMaxLength(500).IsRequired();
         builder.Property(x => x.Note).HasMaxLength(500);
         builder.Property(x => x.AddressType).HasConversion<string>().HasMaxLength(50).IsRequired();

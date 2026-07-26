@@ -13,20 +13,55 @@
   --color-line: #cfdcd4;
   --color-paper: #f7faf8;
   --color-sunrise: #f3c96b;
+  --color-surface: #ffffff;
+}
+
+:root,
+[data-theme="light"] {
+  --color-forest: #1f5f4a;
+  --color-forest-dark: #164536;
+  --color-ink: #1c2a24;
+  --color-muted: #5d6f66;
+  --color-sand: #eef3ef;
+  --color-sand-dark: #dde7e0;
+  --color-line: #cfdcd4;
+  --color-paper: #f7faf8;
+  --color-sunrise: #f3c96b;
+  --color-surface: #ffffff;
+  --page-bg:
+    radial-gradient(circle at top left, rgba(31, 95, 74, 0.08), transparent 40%),
+    radial-gradient(circle at top right, rgba(243, 201, 107, 0.18), transparent 35%),
+    linear-gradient(180deg, #f7faf8 0%, #eef3ef 100%);
+}
+
+[data-theme="dark"] {
+  --color-forest: #3d9a78;
+  --color-forest-dark: #2f7a5f;
+  --color-ink: #edf4ef;
+  --color-muted: #aab7af;
+  --color-sand: #1f2924;
+  --color-sand-dark: #29342e;
+  --color-line: #354039;
+  --color-paper: #121714;
+  --color-sunrise: #d4a84b;
+  --color-surface: #1b221e;
+  --page-bg:
+    radial-gradient(circle at top left, rgba(61, 154, 120, 0.12), transparent 42%),
+    radial-gradient(circle at top right, rgba(212, 168, 75, 0.08), transparent 38%),
+    linear-gradient(180deg, #121714 0%, #161d19 100%);
 }
 
 :root {
   color: var(--color-ink);
-  background:
-    radial-gradient(circle at top left, rgba(31, 95, 74, 0.08), transparent 40%),
-    radial-gradient(circle at top right, rgba(243, 201, 107, 0.18), transparent 35%),
-    linear-gradient(180deg, #f7faf8 0%, #eef3ef 100%);
+  background: var(--page-bg);
   font-family: var(--font-sans);
 }
 
 body {
   margin: 0;
   min-height: 100vh;
+  background: transparent;
+  color: var(--color-ink);
 }
 
 #root {
@@ -49,5 +84,19 @@ body {
 .hover\:bg-sand-dark:hover { background-color: var(--color-sand-dark); }
 .border-line { border-color: var(--color-line); }
 .bg-paper { background-color: var(--color-paper); }
-.ring-forest\/30 { --tw-ring-color: rgb(31 95 74 / 0.3); }
+.bg-surface { background-color: var(--color-surface); }
+.bg-surface\/80 { background-color: color-mix(in srgb, var(--color-surface) 80%, transparent); }
+.ring-forest\/30 { --tw-ring-color: color-mix(in srgb, var(--color-forest) 30%, transparent); }
 .bg-sunrise { background-color: var(--color-sunrise); }
+
+/* Soft-map legacy hard-coded white panels onto theme surface */
+[data-theme="dark"] .bg-white,
+[data-theme="dark"] .bg-white\/70,
+[data-theme="dark"] .bg-white\/80,
+[data-theme="dark"] .bg-white\/90 {
+  background-color: var(--color-surface) !important;
+}
+
+[data-theme="dark"] img {
+  filter: none;
+}
