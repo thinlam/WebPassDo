@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { productsApi } from '../features/products/api'
+import { formatProductStatus, sellerStatusActions } from '../features/products/status'
 import { Badge, Button, EmptyState, PageHeader, Section, Spinner } from '../components/common/ui'
 import { formatPrice, getErrorMessage, resolveMediaUrl } from '../utils/api'
 import { useState } from 'react'
@@ -45,6 +46,8 @@ export function MyProductsPage() {
       <div className="space-y-3">
         {query.data?.items.map((item) => {
           const image = resolveMediaUrl(item.primaryImageUrl)
+          const status = item.status as ProductStatus
+          const actions = sellerStatusActions(status)
           return (
             <div
               key={item.id}
@@ -59,7 +62,7 @@ export function MyProductsPage() {
                 </Link>
                 <p className="text-sm text-forest">{formatPrice(item.sellingPrice)}</p>
                 <div className="flex gap-2">
-                  <Badge>{item.status}</Badge>
+                  <Badge>{formatProductStatus(String(item.status))}</Badge>
                   <Badge tone="neutral">{item.condition}</Badge>
                 </div>
               </div>
@@ -70,22 +73,15 @@ export function MyProductsPage() {
                 <Link to={`/products/${item.id}/edit`}>
                   <Button variant="secondary">Sửa</Button>
                 </Link>
-                {item.status === 'Draft' || item.status === 'Hidden' ? (
+                {actions.map((a) => (
                   <Button
+                    key={a.next}
                     variant="secondary"
-                    onClick={() => statusMutation.mutate({ id: item.id, status: 'Available' })}
+                    onClick={() => statusMutation.mutate({ id: item.id, status: a.next })}
                   >
-                    Hiện
+                    {a.label}
                   </Button>
-                ) : null}
-                {item.status === 'Available' ? (
-                  <Button
-                    variant="secondary"
-                    onClick={() => statusMutation.mutate({ id: item.id, status: 'Hidden' })}
-                  >
-                    Ẩn
-                  </Button>
-                ) : null}
+                ))}
                 <Button variant="danger" onClick={() => deleteMutation.mutate(item.id)}>
                   Xóa
                 </Button>
