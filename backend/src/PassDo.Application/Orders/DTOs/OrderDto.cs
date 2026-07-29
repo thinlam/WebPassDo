@@ -152,9 +152,9 @@ public static class OrderStatusGroups
     public static readonly OrderStatus[] ActiveProcessing =
     [
         OrderStatus.AwaitingPayment,
-        OrderStatus.PendingConfirmation,
-        OrderStatus.AwaitingPreparation,
-        OrderStatus.AwaitingHandover,
+        OrderStatus.PendingSellerConfirmation,
+        OrderStatus.Preparing,
+        OrderStatus.ReadyForShipment,
         OrderStatus.Shipping
     ];
 }

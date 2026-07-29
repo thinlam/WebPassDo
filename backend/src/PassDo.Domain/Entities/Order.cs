@@ -14,7 +14,7 @@ public class Order : BaseEntity
     public decimal ShippingFee { get; set; }
     public decimal GrandTotal { get; set; }
 
-    public OrderStatus Status { get; set; } = OrderStatus.PendingConfirmation;
+    public OrderStatus Status { get; set; } = OrderStatus.PendingSellerConfirmation;
     public PaymentMethod PaymentMethod { get; set; }
     public PaymentStatus PaymentStatus { get; set; } = PaymentStatus.Unpaid;
     public DeliverySpeed DeliverySpeed { get; set; }
@@ -29,6 +29,7 @@ public class Order : BaseEntity
     public DateTime? PickedUpAt { get; set; }
     public DateTime? DeliveredAt { get; set; }
     public DateTime? CancelledAt { get; set; }
+    public DateTime? CompletedAt { get; set; }
 
     // Buyer shipping address snapshot
     public string ShippingRecipientName { get; set; } = string.Empty;

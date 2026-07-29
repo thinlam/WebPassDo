@@ -118,7 +118,7 @@ public class OrderActionHandler :
                 order.Payment.Note = request.Note;
             }
 
-            ChangeStatus(order, OrderStatus.PendingConfirmation, "Đã xác nhận thanh toán chuyển khoản.");
+            ChangeStatus(order, OrderStatus.PendingSellerConfirmation, "Đã xác nhận thanh toán chuyển khoản.");
             await Task.CompletedTask;
         }, ct);
 
@@ -147,13 +147,13 @@ public class OrderActionHandler :
         => Transition(request.OrderId, order =>
         {
             EnsureSellerOrAdmin(order);
-            if (order.Status != OrderStatus.PendingConfirmation)
+            if (order.Status != OrderStatus.PendingSellerConfirmation)
             {
                 throw new ConflictException("Only pending confirmation orders can be confirmed.");
             }
 
             order.ConfirmedAt = _clock.UtcNow;
-            ChangeStatus(order, OrderStatus.AwaitingPreparation, request.Note ?? "Đơn hàng đã được xác nhận.");
+            ChangeStatus(order, OrderStatus.Preparing, request.Note ?? "Đơn hàng đã được xác nhận.");
             return Task.CompletedTask;
         }, ct, afterSave: order => NotifyBuyer(
             order,
@@ -166,7 +166,7 @@ public class OrderActionHandler :
         => Transition(request.OrderId, async order =>
         {
             EnsureSellerOrAdmin(order);
-            if (order.Status is not (OrderStatus.PendingConfirmation or OrderStatus.AwaitingPayment))
+            if (order.Status is not (OrderStatus.PendingSellerConfirmation or OrderStatus.AwaitingPayment))
             {
                 throw new ConflictException("Order cannot be rejected in the current status.");
             }
@@ -186,7 +186,7 @@ public class OrderActionHandler :
         => Transition(request.OrderId, async order =>
         {
             EnsureBuyer(order);
-            if (order.Status is not (OrderStatus.AwaitingPayment or OrderStatus.PendingConfirmation))
+            if (order.Status is not (OrderStatus.AwaitingPayment or OrderStatus.PendingSellerConfirmation))
             {
                 throw new ConflictException("Only unpaid/unconfirmed orders can be cancelled by buyer.");
             }
@@ -207,7 +207,7 @@ public class OrderActionHandler :
         => Transition(request.OrderId, order =>
         {
             EnsureSellerOrAdmin(order);
-            if (order.Status != OrderStatus.AwaitingPreparation)
+            if (order.Status != OrderStatus.Preparing)
             {
                 throw new ConflictException("Order is not awaiting preparation.");
             }
@@ -218,7 +218,7 @@ public class OrderActionHandler :
                 order.Shipment.PreparedByUserId = _currentUser.UserId;
             }
 
-            ChangeStatus(order, OrderStatus.AwaitingHandover, "Người bán đã chuẩn bị hàng.");
+            ChangeStatus(order, OrderStatus.ReadyForShipment, "Người bán đã chuẩn bị hàng.");
             return Task.CompletedTask;
         }, ct, afterSave: order => NotifyBuyer(
             order,
@@ -231,7 +231,7 @@ public class OrderActionHandler :
         => Transition(request.OrderId, order =>
         {
             EnsureSellerOrAdmin(order);
-            if (order.Status != OrderStatus.AwaitingHandover)
+            if (order.Status != OrderStatus.ReadyForShipment)
             {
                 throw new ConflictException("Order is not awaiting handover to courier.");
             }
