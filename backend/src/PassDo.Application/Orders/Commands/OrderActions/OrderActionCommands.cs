@@ -329,7 +329,7 @@ public class OrderActionHandler :
             }
 
             var product = await _context.Products.FirstOrDefaultAsync(x => x.Id == order.ProductId, ct);
-            if (product is not null && product.Quantity <= 0)
+            if (product is not null)
             {
                 product.Status = ProductStatus.Sold;
             }
@@ -361,7 +361,7 @@ public class OrderActionHandler :
     }
 
     public Task<OrderDetailDto> Handle(FailDeliveryCommand request, CancellationToken ct)
-        => Transition(request.OrderId, order =>
+        => Transition(request.OrderId, async order =>
         {
             EnsureSellerOrAdmin(order);
             if (order.Status != OrderStatus.Shipping)
@@ -369,9 +369,9 @@ public class OrderActionHandler :
                 throw new ConflictException("Only shipping orders can fail delivery.");
             }
 
+            await RestoreStock(order, ct);
             order.CancellationReason = request.Reason;
             ChangeStatus(order, OrderStatus.DeliveryFailed, request.Reason);
-            return Task.CompletedTask;
         }, ct, afterSave: order => NotifyBuyer(
             order,
             NotificationTypes.OrderCancelled,
@@ -504,7 +504,7 @@ public class OrderActionHandler :
         product.Quantity += qty;
         if (product.Status is ProductStatus.Reserved or ProductStatus.Sold)
         {
-            product.Status = ProductStatus.Available;
+            product.Status = ProductStatus.Active;
         }
     }
 

@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using PassDo.Application.Common.Exceptions;
 using PassDo.Application.Common.Interfaces;
 using PassDo.Application.Favorites.DTOs;
+using PassDo.Application.Products;
 using PassDo.Domain.Entities;
 using PassDo.Domain.Enums;
 
@@ -55,7 +56,7 @@ public class AddFavoriteCommandHandler : IRequestHandler<AddFavoriteCommand, Fav
             throw new ConflictException("You cannot favorite your own product.");
         }
 
-        if (product.Status is ProductStatus.Draft or ProductStatus.Hidden or ProductStatus.Rejected)
+        if (!ProductStatusTransitions.IsPubliclyListable(product.Status))
         {
             throw new ConflictException("This product cannot be favorited.");
         }

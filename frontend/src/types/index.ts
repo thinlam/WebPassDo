@@ -41,7 +41,14 @@ export type Category = {
 }
 
 export type ProductCondition = 'New' | 'LikeNew' | 'Used' | 'Damaged'
-export type ProductStatus = 'Draft' | 'Available' | 'Reserved' | 'Sold' | 'Hidden' | 'Rejected'
+export type ProductStatus =
+  | 'Draft'
+  | 'Active'
+  | 'Reserved'
+  | 'Sold'
+  | 'Hidden'
+  | 'Rejected'
+  | 'PendingReview'
 
 export type OrderStatus =
   | 'AwaitingPayment'

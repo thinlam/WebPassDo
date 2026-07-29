@@ -5,6 +5,7 @@ using PassDo.Application.Common.Exceptions;
 using PassDo.Application.Common.Interfaces;
 using PassDo.Application.Orders.DTOs;
 using PassDo.Application.Orders.Helpers;
+using PassDo.Application.Products;
 using PassDo.Application.Products.DTOs;
 using PassDo.Application.Products.Mappings;
 using PassDo.Domain.Constants;
@@ -125,10 +126,21 @@ public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand,
         product.AcceptedPaymentOption = request.AcceptedPaymentOption;
         product.AllowedDeliverySpeeds = OrderHelpers.JoinDeliverySpeeds(request.AllowedDeliverySpeeds);
 
-        if (request.Status.HasValue
-            && request.Status is ProductStatus.Draft or ProductStatus.Available or ProductStatus.Hidden)
+        if (request.Status.HasValue)
         {
-            product.Status = request.Status.Value;
+            var to = request.Status.Value;
+
+            if (ProductStatusTransitions.IsSystemManaged(to))
+            {
+                throw new ConflictException("Reserved/Sold status is managed by order flow.");
+            }
+
+            if (!ProductStatusTransitions.CanSellerTransition(product.Status, to))
+            {
+                throw new ConflictException("Invalid status transition.");
+            }
+
+            product.Status = to;
         }
 
         await _context.SaveChangesAsync(cancellationToken);

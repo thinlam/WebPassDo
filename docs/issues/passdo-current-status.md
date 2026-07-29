@@ -1,6 +1,6 @@
 # PassDo — Current Status Audit (PASSDO-01)
 
-> Ngày audit: **2026-07-27**  
+> Ngày audit: **2026-07-29** (cập nhật PASSDO-03)  
 > Nguồn: Backend (`PassDo.sln`), Frontend (`frontend/`), Docker, Migrations.
 
 ## Kết quả kiểm tra môi trường
@@ -19,7 +19,7 @@
 | -- | ---- | ---------- | ------ | ----------------- |
 | PASSDO-01 | Audit source hiện tại | ✅ Done | [x] | [x] (tài liệu này) |
 | PASSDO-02 | Chuẩn hóa tài khoản & quyền | ✅ Done | [x] | [x] migration `RemoveLegacyShipperFields` + ownership tests |
-| PASSDO-03 | Chuẩn hóa trạng thái sản phẩm | ⬜ Chưa đạt roadmap | [ ] | [ ] |
+| PASSDO-03 | Chuẩn hóa trạng thái sản phẩm | ✅ Done (cốt lõi) | [x] | [ ] admin queue UI + multi-stock deferred |
 | PASSDO-04 | Chuẩn hóa trạng thái đơn hàng | ⬜ Chưa đạt roadmap | [ ] | [ ] |
 | PASSDO-05 | Fix DeliveryCompany | ✅ Done (cốt lõi) | [x] | [ ] tách DTO / self-delivery |
 | PASSDO-06 | Người bán xác nhận đơn | ✅ Done (cốt lõi) | [x] | [ ] lý do từ chối chuẩn hóa |
@@ -55,12 +55,12 @@
 
 | Hạng mục | Nội dung |
 | -------- | -------- |
-| Backend | ✅ CRUD + images + status patch. Enum: `Draft, Available, Reserved, Sold, Hidden, Rejected` |
-| Frontend | ✅ List, detail, create/edit, my-products (ẩn/hiện/xóa). Partial filters |
-| Database | ✅ `Products`, `ProductImages`, `Favorites`, `Categories` |
+| Backend | ✅ CRUD + images + status patch. Enum: `Draft, Active, Reserved, Sold, Hidden, Rejected, PendingReview`. Transition gates + one-order constraint |
+| Frontend | ✅ List, detail, create/edit, my-products. Shared VN status labels + seller actions. Partial filters |
+| Database | ✅ `Products`, `ProductImages`, `Favorites`, `Categories`. Filtered unique index `UX_Orders_OneActivePerProduct` |
 | API | `/api/products`, `/my-products`, `/{id}`, status, images |
-| Lỗi hiện tại | Tên status lệch roadmap (`Available` ≠ `Active`, thiếu `PendingReview`) |
-| Việc tiếp theo | PASSDO-03 chuẩn hóa enum; PASSDO-10/11/15/17 nâng cấp |
+| Lỗi hiện tại | Chưa có admin products page (Approve/Reject UI); multi-stock out of scope |
+| Việc tiếp theo | PASSDO-10/11/15/17 nâng cấp; admin moderation UI follow-up |
 
 ### Orders
 
@@ -112,6 +112,7 @@
 4. `20260724093911_AddUserLastSeenAt`
 5. `20260725140710_AddGoogleAuthNotificationsAndAddressCodes`
 6. `20260725142445_AddProductViewCount`
+7. `20260729074415_OneActiveOrderPerProduct`
 
 **Bảng có:** Users, Categories, Products, ProductImages, Favorites, Orders, OrderItems, OrderPayments, OrderShipments, OrderStatusHistories, UserAddresses, UserBankAccounts, RefreshTokens, Conversations, Messages, Notifications.
 
@@ -119,10 +120,9 @@
 
 ## Ưu tiên triển khai tiếp (Sprint 1)
 
-1. PASSDO-03 — Chuẩn hóa trạng thái sản phẩm  
-2. PASSDO-04 — Chuẩn hóa trạng thái đơn hàng  
-3. PASSDO-05 — Polish DeliveryCompany / DTO  
-4. PASSDO-06 — Lý do từ chối chuẩn hóa + noti reject  
-5. PASSDO-07 — Đủ loại thông báo + deep-link  
+1. PASSDO-04 — Chuẩn hóa trạng thái đơn hàng  
+2. PASSDO-05 — Polish DeliveryCompany / DTO  
+3. PASSDO-06 — Lý do từ chối chuẩn hóa + noti reject  
+4. PASSDO-07 — Đủ loại thông báo + deep-link  
 
 Chi tiết từng task: xem các file `docs/issues/PASSDO-XX-*.md` và file Excel `docs/issues/PassDo-Roadmap-Tracker.xlsx`.

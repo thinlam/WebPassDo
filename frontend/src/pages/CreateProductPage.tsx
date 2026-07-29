@@ -30,7 +30,6 @@ const schema = z.object({
   categoryId: z.string().min(1, 'Chọn danh mục'),
   location: z.string().min(2, 'Nhập khu vực'),
   quantity: z.number().int().min(1, 'Số lượng ≥ 1'),
-  status: z.enum(['Draft', 'Available', 'Hidden']),
   pickupAddressId: z.string().min(1, 'Vui lòng chọn địa chỉ lấy hàng'),
   bankAccountId: z.string().optional(),
   acceptedPaymentOption: z.enum(['BankTransfer', 'CashOnDelivery', 'Both']),
@@ -72,7 +71,6 @@ export function CreateProductPage() {
     resolver: zodResolver(schema),
     defaultValues: {
       condition: 'Used',
-      status: 'Available',
       originalPrice: 0,
       sellingPrice: 0,
       quantity: 1,
@@ -98,6 +96,7 @@ export function CreateProductPage() {
       }
       const product = await productsApi.create({
         ...values,
+        status: 'Draft',
         pickupAddressId: values.pickupAddressId || null,
         bankAccountId: values.bankAccountId || null,
         allowedDeliverySpeeds: speeds.length > 0 ? speeds : ['Standard', 'Intercity'],
@@ -190,11 +189,6 @@ export function CreateProductPage() {
             <option value="LikeNew">LikeNew</option>
             <option value="Used">Used</option>
             <option value="Damaged">Damaged</option>
-          </Select>
-          <Select label="Trạng thái" error={errors.status?.message} {...register('status')}>
-            <option value="Available">Available</option>
-            <option value="Draft">Draft</option>
-            <option value="Hidden">Hidden</option>
           </Select>
         </div>
         <Select label="Danh mục" error={errors.categoryId?.message} {...register('categoryId')}>

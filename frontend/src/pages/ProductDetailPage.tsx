@@ -10,6 +10,7 @@ import { formatPrice, getErrorMessage, resolveMediaUrl } from '../utils/api'
 import { PresenceLabel } from '../components/presence/PresenceLabel'
 import { usePresenceHub } from '../features/presence/usePresenceHub'
 import { formatDate } from '../lib/orderStatus'
+import { canBuyStatus, formatProductStatus } from '../features/products/status'
 
 const PAYMENT_LABELS: Record<string, string> = {
   BankTransfer: 'Chuyển khoản',
@@ -22,15 +23,6 @@ const CONDITION_LABELS: Record<string, string> = {
   LikeNew: 'Như mới',
   Used: 'Đã dùng',
   Damaged: 'Có hư hỏng',
-}
-
-const STATUS_LABELS: Record<string, string> = {
-  Draft: 'Nháp',
-  Available: 'Đang bán',
-  Hidden: 'Đã ẩn',
-  Sold: 'Đã bán',
-  Reserved: 'Hết hàng / Đã giữ',
-  Rejected: 'Bị từ chối',
 }
 
 export function ProductDetailPage() {
@@ -123,7 +115,7 @@ export function ProductDetailPage() {
 
       <div className="space-y-5">
         <div className="flex flex-wrap gap-2">
-          <Badge tone="success">{STATUS_LABELS[String(product.status)] ?? product.status}</Badge>
+          <Badge tone="success">{formatProductStatus(String(product.status))}</Badge>
           <Badge>{CONDITION_LABELS[String(product.condition)] ?? product.condition}</Badge>
           <Badge tone="neutral">{product.categoryName ?? 'Danh mục'}</Badge>
         </div>
@@ -221,7 +213,7 @@ export function ProductDetailPage() {
         {error && <p className="text-sm text-rose-700">{error}</p>}
 
         <div className="flex flex-wrap gap-3">
-          {isAuthenticated && !isOwner && product.status === 'Available' && (
+          {isAuthenticated && !isOwner && canBuyStatus(String(product.status)) && (
             <>
               <Button onClick={() => navigate(`/checkout/${id}`)}>Mua</Button>
               <Button

@@ -38,7 +38,6 @@ const schema = z.object({
   categoryId: z.string().min(1, 'Chọn danh mục'),
   location: z.string().min(2, 'Nhập khu vực'),
   quantity: z.number().int().min(1, 'Số lượng ≥ 1'),
-  status: z.enum(['Draft', 'Available', 'Hidden']).optional(),
   pickupAddressId: z.string().optional(),
   bankAccountId: z.string().optional(),
   acceptedPaymentOption: z.enum(['BankTransfer', 'CashOnDelivery', 'Both']),
@@ -109,9 +108,6 @@ export function EditProductPage() {
           categoryId: String(product.categoryId ?? ''),
           location: product.location ?? '',
           quantity: Math.max(1, Number(product.quantity) || 1),
-          status: (['Draft', 'Available', 'Hidden'].includes(String(product.status))
-            ? product.status
-            : 'Available') as FormValues['status'],
           pickupAddressId: product.pickupAddressId ? String(product.pickupAddressId) : '',
           bankAccountId: product.bankAccountId ? String(product.bankAccountId) : '',
           acceptedPaymentOption: (['BankTransfer', 'CashOnDelivery', 'Both'].includes(
@@ -239,11 +235,6 @@ export function EditProductPage() {
             <option value="LikeNew">Như mới</option>
             <option value="Used">Đã dùng</option>
             <option value="Damaged">Hư hỏng nhẹ</option>
-          </Select>
-          <Select label="Trạng thái hiển thị" error={errors.status?.message} {...register('status')}>
-            <option value="Available">Đang bán</option>
-            <option value="Draft">Nháp</option>
-            <option value="Hidden">Ẩn</option>
           </Select>
         </div>
         <Select label="Danh mục" error={errors.categoryId?.message} {...register('categoryId')}>

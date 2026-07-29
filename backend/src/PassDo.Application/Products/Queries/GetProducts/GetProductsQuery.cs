@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using PassDo.Application.Common.Interfaces;
 using PassDo.Application.Common.Models;
+using PassDo.Application.Products;
 using PassDo.Application.Products.DTOs;
 using PassDo.Application.Products.Mappings;
 using PassDo.Domain.Enums;
@@ -55,14 +56,21 @@ public class GetProductsQueryHandler : IRequestHandler<GetProductsQuery, PagedRe
             .Include(x => x.Images)
             .AsQueryable();
 
-        // Public listing defaults to Available unless a specific status is requested.
+        // Public listing defaults to Active unless a specific status is requested.
         if (request.Status.HasValue)
         {
-            query = query.Where(x => x.Status == request.Status.Value);
+            if (ProductStatusTransitions.IsPubliclyListable(request.Status.Value))
+            {
+                query = query.Where(x => x.Status == request.Status.Value);
+            }
+            else
+            {
+                query = query.Where(_ => false);
+            }
         }
         else
         {
-            query = query.Where(x => x.Status == ProductStatus.Available);
+            query = query.Where(x => x.Status == ProductStatus.Active);
         }
 
         if (!string.IsNullOrWhiteSpace(request.Keyword))

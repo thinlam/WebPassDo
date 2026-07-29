@@ -78,7 +78,7 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
             throw new ConflictException("You cannot buy your own product.");
         }
 
-        if (product.Status is not ProductStatus.Available)
+        if (product.Status is not ProductStatus.Active)
         {
             throw new ConflictException($"Product is not available for purchase (status: {product.Status}).");
         }
@@ -125,13 +125,13 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
 
         var hasActiveOrder = await _context.Orders.AnyAsync(
             x => x.ProductId == product.Id
-                 && x.BuyerId == buyerId
+                 && !x.IsDeleted
                  && OrderStatusGroups.ActiveProcessing.Contains(x.Status),
             cancellationToken);
 
         if (hasActiveOrder)
         {
-            throw new ConflictException("You already have an active order for this product.");
+            throw new ConflictException("This product already has an active order.");
         }
 
         var buyer = await _context.Users.FirstAsync(x => x.Id == buyerId, cancellationToken);
@@ -247,13 +247,17 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
                 : "Người mua đã đặt hàng (COD).");
 
         product.Quantity -= request.Quantity;
-        if (product.Quantity <= 0)
-        {
-            product.Status = ProductStatus.Reserved;
-        }
+        product.Status = ProductStatus.Reserved;
 
         _context.Orders.Add(order);
-        await _context.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex) when (IsOneActiveOrderPerProductViolation(ex))
+        {
+            throw new ConflictException("This product already has an active order.");
+        }
 
         await _notificationService.NotifyAsync(
             product.SellerId,
@@ -267,6 +271,21 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
 
         var created = await LoadOrder(order.Id, cancellationToken);
         return OrderMapper.ToDetailDto(created, includeSensitiveContact: true, includeFullBankAccount: true);
+    }
+
+    private static bool IsOneActiveOrderPerProductViolation(DbUpdateException ex)
+    {
+        const string indexName = "UX_Orders_OneActivePerProduct";
+
+        for (Exception? cur = ex; cur is not null; cur = cur.InnerException)
+        {
+            if (cur.Message.Contains(indexName, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private async Task<Order> LoadOrder(Guid id, CancellationToken cancellationToken)
