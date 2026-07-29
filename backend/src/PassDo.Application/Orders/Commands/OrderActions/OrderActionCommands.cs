@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using PassDo.Application.Common.Exceptions;
 using PassDo.Application.Common.Interfaces;
 using PassDo.Application.Common.Options;
+using PassDo.Application.Orders;
 using PassDo.Application.Orders.DTOs;
 using PassDo.Application.Orders.Helpers;
 using PassDo.Application.Orders.Mappings;
@@ -30,6 +31,7 @@ public record HandOverToCourierCommand(
     DateTime? EstimatedDeliveryFrom,
     DateTime? EstimatedDeliveryTo) : IRequest<OrderDetailDto>;
 public record ConfirmDeliveredCommand(Guid OrderId) : IRequest<OrderDetailDto>;
+public record CompleteOrderCommand(Guid OrderId) : IRequest<OrderDetailDto>;
 public record FailDeliveryCommand(Guid OrderId, string Reason) : IRequest<OrderDetailDto>;
 
 public class RejectOrderCommandValidator : AbstractValidator<RejectOrderCommand>
@@ -78,6 +80,7 @@ public class OrderActionHandler :
     IRequestHandler<MarkPreparedCommand, OrderDetailDto>,
     IRequestHandler<HandOverToCourierCommand, OrderDetailDto>,
     IRequestHandler<ConfirmDeliveredCommand, OrderDetailDto>,
+    IRequestHandler<CompleteOrderCommand, OrderDetailDto>,
     IRequestHandler<FailDeliveryCommand, OrderDetailDto>
 {
     private readonly IApplicationDbContext _context;
@@ -357,6 +360,44 @@ public class OrderActionHandler :
                     $"Đơn hàng {order.OrderCode} - \"{ProductName(order)}\" đã giao thành công. Cảm ơn bạn đã mua hàng trên PassDo.",
                     ct);
             }
+        });
+    }
+
+    public Task<OrderDetailDto> Handle(CompleteOrderCommand request, CancellationToken ct)
+    {
+        var didComplete = false;
+        return Transition(request.OrderId, order =>
+        {
+            EnsureBuyer(order);
+
+            if (order.Status == OrderStatus.Completed)
+            {
+                return Task.CompletedTask;
+            }
+
+            if (!OrderStatusTransitions.CanBuyerConfirmComplete(order.Status))
+            {
+                throw new ConflictException("Only delivered orders can be completed.");
+            }
+
+            order.CompletedAt = _clock.UtcNow;
+            ChangeStatus(order, OrderStatus.Completed, "Người mua đã xác nhận hoàn tất đơn.");
+            didComplete = true;
+
+            return Task.CompletedTask;
+        }, ct, afterSave: order =>
+        {
+            if (!didComplete)
+            {
+                return Task.CompletedTask;
+            }
+
+            return NotifySeller(
+                order,
+                NotificationTypes.OrderCompleted,
+                "Đơn hàng đã hoàn tất",
+                $"Người mua đã xác nhận hoàn tất đơn {order.OrderCode} - \"{ProductName(order)}\".",
+                ct);
         });
     }
 
