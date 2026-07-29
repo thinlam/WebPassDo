@@ -47,6 +47,8 @@ Admin seed:
 
 Chi tiết luồng mua bán / thanh toán / vận chuyển: [docs/COMMERCE_HANDOVER.md](docs/COMMERCE_HANDOVER.md).
 
+**Deploy lên VPS (tắt máy vẫn mở web):** [docs/DEPLOY_VPS.md](docs/DEPLOY_VPS.md).
+
 ### Ghi chú Windows
 
 - Port host `8080` thường bị Windows chặn → mặc định map Backend ra **`8081`**.

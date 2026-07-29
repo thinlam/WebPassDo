@@ -8,7 +8,8 @@ services:
       MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
       MSSQL_PID: Developer
     ports:
-      - "${MSSQL_PORT:-1434}:1433"
+      # Do not expose SQL to the public internet. Bind loopback only.
+      - "${MSSQL_BIND:-127.0.0.1}:${MSSQL_PORT:-1434}:1433"
     volumes:
       - mssql_data:/var/opt/mssql
     healthcheck:
@@ -40,12 +41,15 @@ services:
       Google__ClientId: ${Google__ClientId:-}
       FileStorage__RootPath: /app/uploads
       FileStorage__RequestPath: /uploads
-      Cors__AllowedOrigins__0: http://localhost:5173
-      Cors__AllowedOrigins__1: http://localhost:${FRONTEND_PORT:-3000}
+      # Override for production domain(s). Empty CORS_ORIGIN_2 is ignored by most setups — set when needed.
+      Cors__AllowedOrigins__0: ${CORS_ORIGIN_0:-http://localhost:5173}
+      Cors__AllowedOrigins__1: ${CORS_ORIGIN_1:-http://localhost:3000}
+      Cors__AllowedOrigins__2: ${CORS_ORIGIN_2:-http://127.0.0.1:3000}
       Swagger__Enabled: ${SWAGGER_ENABLED:-true}
     ports:
-      # Host 8080 is often reserved on Windows; default publish is 8081.
-      - "${BACKEND_PORT:-8081}:8080"
+      # Prefer loopback on VPS so only frontend (or a reverse proxy) is public.
+      # Local Windows: still reach Swagger at http://127.0.0.1:8081
+      - "${BACKEND_BIND:-127.0.0.1}:${BACKEND_PORT:-8081}:8080"
     volumes:
       - uploads_data:/app/uploads
     depends_on:
