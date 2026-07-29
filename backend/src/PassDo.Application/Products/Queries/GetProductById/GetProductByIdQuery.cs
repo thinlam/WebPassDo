@@ -4,6 +4,7 @@ using PassDo.Application.Common.Exceptions;
 using PassDo.Application.Common.Interfaces;
 using PassDo.Application.Orders.Mappings;
 using PassDo.Application.Presence;
+using PassDo.Application.Products;
 using PassDo.Application.Products.DTOs;
 using PassDo.Application.Products.Mappings;
 using PassDo.Domain.Constants;
@@ -44,15 +45,13 @@ public class GetProductByIdQueryHandler : IRequestHandler<GetProductByIdQuery, P
         var isOwner = _currentUserService.UserId == product.SellerId;
         var isAdmin = string.Equals(_currentUserService.Role, Roles.Admin, StringComparison.OrdinalIgnoreCase);
 
-        if (product.Status is ProductStatus.Draft or ProductStatus.Hidden or ProductStatus.Rejected
-            && !isOwner
-            && !isAdmin)
+        if (!isOwner && !isAdmin && !ProductStatusTransitions.IsPubliclyListable(product.Status))
         {
             throw new NotFoundException("Product", request.Id);
         }
 
         // Count a view for public browsing (skip seller viewing their own listing).
-        if (!isOwner && product.Status == ProductStatus.Active)
+        if (!isOwner && ProductStatusTransitions.IsPubliclyListable(product.Status))
         {
             var tracked = await _context.Products.FirstAsync(x => x.Id == product.Id, cancellationToken);
             tracked.ViewCount += 1;

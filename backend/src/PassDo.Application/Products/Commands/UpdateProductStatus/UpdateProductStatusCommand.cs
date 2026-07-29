@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using PassDo.Application.Common.Exceptions;
 using PassDo.Application.Common.Interfaces;
+using PassDo.Application.Products;
 using PassDo.Application.Products.DTOs;
 using PassDo.Application.Products.Mappings;
 using PassDo.Domain.Constants;
@@ -63,14 +64,21 @@ public class UpdateProductStatusCommandHandler : IRequestHandler<UpdateProductSt
             throw new ConflictException("Sold products cannot change status.");
         }
 
-        if (!isAdmin && request.Status is ProductStatus.Rejected)
-        {
-            throw new ForbiddenException("Only admin can reject products.");
-        }
-
-        if (request.Status is ProductStatus.Reserved or ProductStatus.Sold)
+        if (ProductStatusTransitions.IsSystemManaged(request.Status))
         {
             throw new ConflictException("Reserved/Sold status is managed by order flow.");
+        }
+
+        if (request.Status != product.Status)
+        {
+            var canTransition =
+                (isOwner && ProductStatusTransitions.CanSellerTransition(product.Status, request.Status))
+                || (isAdmin && ProductStatusTransitions.CanAdminTransition(product.Status, request.Status));
+
+            if (!canTransition)
+            {
+                throw new ConflictException("Invalid status transition.");
+            }
         }
 
         product.Status = request.Status;
