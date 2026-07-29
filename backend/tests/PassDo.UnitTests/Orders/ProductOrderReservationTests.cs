@@ -390,5 +390,107 @@ public class ProductOrderReservationTests
         var reloaded = await db.Products.AsNoTracking().FirstAsync(x => x.Id == productId);
         reloaded.Status.Should().Be(ProductStatus.Active);
     }
+
+    [Fact]
+    public async Task ConfirmDelivered_SetsProductSold_EvenWhenQuantityStillPositive()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var sellerId = Guid.NewGuid();
+        var buyerId = Guid.NewGuid();
+        var productId = Guid.NewGuid();
+        var buyerAddressId = Guid.NewGuid();
+
+        var (db, currentUser, clock) = CreateDb(dbName, buyerId);
+        await SeedUsersAddressesAndProduct(
+            db,
+            sellerId,
+            buyerId,
+            secondBuyerId: null,
+            productId,
+            ProductStatus.Active,
+            productQty: 10,
+            buyerAddressId,
+            secondBuyerShippingAddressId: null);
+
+        var shipping = new ShippingCalculator(Options.Create(new ShippingOptions()));
+        var notifications = new Mock<INotificationService>();
+
+        var createHandler = new CreateOrderCommandHandler(db, currentUser.Object, shipping, clock.Object, notifications.Object);
+        var created = await createHandler.Handle(
+            new CreateOrderCommand(
+                productId,
+                1,
+                buyerAddressId,
+                DeliverySpeed.Standard,
+                PaymentMethod.CashOnDelivery,
+                null),
+            CancellationToken.None);
+
+        var before = await db.Products.AsNoTracking().FirstAsync(x => x.Id == productId);
+        before.Quantity.Should().BeGreaterThan(0);
+        before.Status.Should().Be(ProductStatus.Reserved);
+
+        var order = await db.Orders.FirstAsync(x => x.Id == created.Id);
+        order.Status = OrderStatus.Shipping;
+        await db.SaveChangesAsync();
+
+        var actionHandler = new OrderActionHandler(db, currentUser.Object, shipping, clock.Object, notifications.Object);
+        await actionHandler.Handle(new ConfirmDeliveredCommand(created.Id), CancellationToken.None);
+
+        var reloaded = await db.Products.AsNoTracking().FirstAsync(x => x.Id == productId);
+        reloaded.Status.Should().Be(ProductStatus.Sold);
+    }
+
+    [Fact]
+    public async Task FailDelivery_RestoresProductToActive_AndRestoresQuantity()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var sellerId = Guid.NewGuid();
+        var buyerId = Guid.NewGuid();
+        var productId = Guid.NewGuid();
+        var buyerAddressId = Guid.NewGuid();
+
+        var (buyerDb, buyerUser, buyerClock) = CreateDb(dbName, buyerId);
+        await SeedUsersAddressesAndProduct(
+            buyerDb,
+            sellerId,
+            buyerId,
+            secondBuyerId: null,
+            productId,
+            ProductStatus.Active,
+            productQty: 2,
+            buyerAddressId,
+            secondBuyerShippingAddressId: null);
+
+        var shipping = new ShippingCalculator(Options.Create(new ShippingOptions()));
+        var notifications = new Mock<INotificationService>();
+
+        var createHandler = new CreateOrderCommandHandler(buyerDb, buyerUser.Object, shipping, buyerClock.Object, notifications.Object);
+        var created = await createHandler.Handle(
+            new CreateOrderCommand(
+                productId,
+                1,
+                buyerAddressId,
+                DeliverySpeed.Standard,
+                PaymentMethod.CashOnDelivery,
+                null),
+            CancellationToken.None);
+
+        var afterCreate = await buyerDb.Products.AsNoTracking().FirstAsync(x => x.Id == productId);
+        afterCreate.Status.Should().Be(ProductStatus.Reserved);
+        afterCreate.Quantity.Should().Be(1);
+
+        var (sellerDb, sellerUser, sellerClock) = CreateDb(dbName, sellerId);
+        var order = await sellerDb.Orders.FirstAsync(x => x.Id == created.Id);
+        order.Status = OrderStatus.Shipping;
+        await sellerDb.SaveChangesAsync();
+
+        var actionHandler = new OrderActionHandler(sellerDb, sellerUser.Object, shipping, sellerClock.Object, notifications.Object);
+        await actionHandler.Handle(new FailDeliveryCommand(created.Id, "delivery failed"), CancellationToken.None);
+
+        var reloaded = await sellerDb.Products.AsNoTracking().FirstAsync(x => x.Id == productId);
+        reloaded.Status.Should().Be(ProductStatus.Active);
+        reloaded.Quantity.Should().Be(2);
+    }
 }
 
