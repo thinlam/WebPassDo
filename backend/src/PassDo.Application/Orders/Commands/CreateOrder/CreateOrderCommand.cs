@@ -250,7 +250,14 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
         product.Status = ProductStatus.Reserved;
 
         _context.Orders.Add(order);
-        await _context.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex) when (IsOneActiveOrderPerProductViolation(ex))
+        {
+            throw new ConflictException("This product already has an active order.");
+        }
 
         await _notificationService.NotifyAsync(
             product.SellerId,
@@ -264,6 +271,21 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
 
         var created = await LoadOrder(order.Id, cancellationToken);
         return OrderMapper.ToDetailDto(created, includeSensitiveContact: true, includeFullBankAccount: true);
+    }
+
+    private static bool IsOneActiveOrderPerProductViolation(DbUpdateException ex)
+    {
+        const string indexName = "UX_Orders_OneActivePerProduct";
+
+        for (Exception? cur = ex; cur is not null; cur = cur.InnerException)
+        {
+            if (cur.Message.Contains(indexName, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private async Task<Order> LoadOrder(Guid id, CancellationToken cancellationToken)

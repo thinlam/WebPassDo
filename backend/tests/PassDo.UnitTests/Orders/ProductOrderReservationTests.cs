@@ -16,6 +16,22 @@ namespace PassDo.UnitTests.Orders;
 
 public class ProductOrderReservationTests
 {
+    private sealed class UniqueIndexViolationDbContext : PassDoDbContext
+    {
+        public UniqueIndexViolationDbContext(
+            DbContextOptions<PassDoDbContext> options,
+            ICurrentUserService currentUserService,
+            IDateTimeProvider dateTimeProvider)
+            : base(options, currentUserService, dateTimeProvider)
+        {
+        }
+
+        public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+            => throw new DbUpdateException(
+                "Simulated unique index violation",
+                new Exception("UX_Orders_OneActivePerProduct"));
+    }
+
     private static (PassDoDbContext Db, Mock<ICurrentUserService> CurrentUser, Mock<IDateTimeProvider> Clock) CreateDb(
         string dbName,
         Guid userId)
@@ -256,6 +272,11 @@ public class ProductOrderReservationTests
                 null),
             CancellationToken.None);
 
+        // Simulate an edge case where the product was set back to Active while an order is still non-terminal.
+        var product = await db1.Products.FirstAsync(x => x.Id == productId);
+        product.Status = ProductStatus.Active;
+        await db1.SaveChangesAsync();
+
         var (db2, currentUser2, clock2) = CreateDb(dbName, buyer2Id);
         var handler2 = new CreateOrderCommandHandler(db2, currentUser2.Object, shipping, clock2.Object, notifications.Object);
 
@@ -269,7 +290,63 @@ public class ProductOrderReservationTests
                 null),
             CancellationToken.None);
 
-        await act.Should().ThrowAsync<ConflictException>();
+        await act.Should().ThrowAsync<ConflictException>()
+            .WithMessage("*active order*");
+    }
+
+    [Fact]
+    public async Task CreateOrder_MapsUniqueIndexViolation_ToConflict()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var sellerId = Guid.NewGuid();
+        var buyerId = Guid.NewGuid();
+        var productId = Guid.NewGuid();
+        var buyerAddressId = Guid.NewGuid();
+
+        // Seed with normal context first (the throwing context would break seeding).
+        var (seedDb, _, _) = CreateDb(dbName, buyerId);
+        await SeedUsersAddressesAndProduct(
+            seedDb,
+            sellerId,
+            buyerId,
+            secondBuyerId: null,
+            productId,
+            ProductStatus.Active,
+            productQty: 10,
+            buyerAddressId,
+            secondBuyerShippingAddressId: null);
+
+        // Then run the handler with a context that simulates a unique index violation on SaveChangesAsync.
+        var options = new DbContextOptionsBuilder<PassDoDbContext>()
+            .UseInMemoryDatabase(dbName)
+            .Options;
+
+        var currentUser = new Mock<ICurrentUserService>();
+        currentUser.Setup(x => x.UserId).Returns(buyerId);
+        currentUser.Setup(x => x.IsAuthenticated).Returns(true);
+        currentUser.Setup(x => x.Role).Returns("User");
+
+        var clock = new Mock<IDateTimeProvider>();
+        clock.Setup(x => x.UtcNow).Returns(DateTime.UtcNow);
+
+        var db = new UniqueIndexViolationDbContext(options, currentUser.Object, clock.Object);
+
+        var shipping = new ShippingCalculator(Options.Create(new ShippingOptions()));
+        var notifications = new Mock<INotificationService>();
+        var handler = new CreateOrderCommandHandler(db, currentUser.Object, shipping, clock.Object, notifications.Object);
+
+        var act = async () => await handler.Handle(
+            new CreateOrderCommand(
+                productId,
+                1,
+                buyerAddressId,
+                DeliverySpeed.Standard,
+                PaymentMethod.CashOnDelivery,
+                null),
+            CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>()
+            .WithMessage("*active order*");
     }
 
     [Fact]
