@@ -43,7 +43,7 @@ Admin seed:
 - Email: `admin@passdo.local`
 - Password: `Admin@123456`
 
-(Tài khoản Shipper đã bỏ — giao hàng do seller bàn giao.)
+**Tài khoản & quyền:** Hệ thống chỉ có role `Admin` và `User`. Một tài khoản `User` vừa đăng bán sản phẩm vừa mua hàng của người khác — không cần đổi role. Không còn role Shipper (giao hàng do người bán bàn giao / đơn vị vận chuyển).
 
 Chi tiết luồng mua bán / thanh toán / vận chuyển: [docs/COMMERCE_HANDOVER.md](docs/COMMERCE_HANDOVER.md).
 
@@ -55,17 +55,80 @@ Chi tiết luồng mua bán / thanh toán / vận chuyển: [docs/COMMERCE_HANDO
 - Port host `1433` thường bị SQL Express chiếm → Docker SQL map ra **`1434`**.
 - Đổi port trong `.env` nếu cần: `BACKEND_PORT`, `FRONTEND_PORT`, `MSSQL_PORT`.
 
-### Migration trong Docker
+### EF Core Migrations (local + Docker)
 
-- `APPLY_MIGRATIONS=true` (mặc định Development) → Backend tự `Migrate` + seed khi start.
-- Production: đặt `APPLY_MIGRATIONS=false` và chạy migration có kiểm soát.
+Luôn chạy từ **root repo** (`E:\WebPassDo`), không chạy trong thư mục `Migrations` (sẽ lỗi `No project was found`).
 
-Dừng / reset sạch volume:
+```powershell
+cd E:\WebPassDo
+
+# Tạo migration mới (sau khi đổi entity / DbContext)
+dotnet ef migrations add <TenMigration> `
+  --project backend/src/PassDo.Infrastructure/PassDo.Infrastructure.csproj `
+  --startup-project backend/src/PassDo.Api/PassDo.Api.csproj `
+  --output-dir Persistence/Migrations
+
+# Ví dụ PASSDO-02:
+# dotnet ef migrations add RemoveLegacyShipperFields `
+#   --project backend/src/PassDo.Infrastructure/PassDo.Infrastructure.csproj `
+#   --startup-project backend/src/PassDo.Api/PassDo.Api.csproj `
+#   --output-dir Persistence/Migrations
+```
+
+#### 1) Update database — SQL local (SQL Express)
+
+Connection lấy từ `appsettings.Development.json` / `appsettings.json` (`DESKTOP-...\SQLEXPRESS`, database `PassDoDb`):
+
+```powershell
+cd E:\WebPassDo
+dotnet ef database update `
+  --project backend/src/PassDo.Infrastructure/PassDo.Infrastructure.csproj `
+  --startup-project backend/src/PassDo.Api/PassDo.Api.csproj
+```
+
+#### 2) Update database — Docker SQL (`localhost:1434`)
+
+**Cách A (khuyến nghị):** Backend tự migrate khi start nếu `APPLY_MIGRATIONS=true` trong `.env` (mặc định Development):
+
+```powershell
+cd E:\WebPassDo
+docker compose up -d --build backend
+# hoặc cả stack:
+# docker compose up -d --build
+```
+
+**Cách B:** Chạy `ef database update` thẳng vào SQL Docker:
+
+```powershell
+cd E:\WebPassDo
+
+# Nạp MSSQL_SA_PASSWORD từ .env
+Get-Content .env | ForEach-Object {
+  if ($_ -match '^\s*#' -or $_ -notmatch '=') { return }
+  $k, $v = $_.Split('=', 2)
+  Set-Item -Path "Env:$k" -Value $v.Trim()
+}
+
+$env:ConnectionStrings__DefaultConnection = "Server=localhost,$($env:MSSQL_PORT);Database=$($env:MSSQL_DATABASE);User Id=sa;Password=$($env:MSSQL_SA_PASSWORD);TrustServerCertificate=True;Encrypt=False"
+
+dotnet ef database update `
+  --project backend/src/PassDo.Infrastructure/PassDo.Infrastructure.csproj `
+  --startup-project backend/src/PassDo.Api/PassDo.Api.csproj
+```
+
+| Môi trường | DB | Cách apply migration |
+| ---------- | -- | -------------------- |
+| `dotnet run` local | SQL Express | `dotnet ef database update` (mục 1) |
+| Docker Compose | SQL container `:1434` | `APPLY_MIGRATIONS=true` + restart backend, hoặc mục 2B |
+
+**Không cần** `docker compose down -v` chỉ vì có migration mới — volume giữ nguyên, schema được update. Chỉ reset volume khi cố ý xóa sạch DB/uploads:
 
 ```bash
 docker compose down
-docker compose down -v   # xóa DB + uploads
+docker compose down -v   # xóa DB + uploads — mất dữ liệu
 ```
+
+Production: đặt `APPLY_MIGRATIONS=false` và chạy migration có kiểm soát.
 
 ## Đổi máy: backup DB + uploads (Docker)
 
@@ -312,12 +375,14 @@ Luôn coi **máy vừa backup gần nhất** là nguồn sự thật của data.
 
 ### Backend
 
-Cập nhật `ConnectionStrings:DefaultConnection` trong `appsettings.Development.json` cho SQL Express / SQL Server local, rồi:
+Cập nhật `ConnectionStrings:DefaultConnection` trong `appsettings.Development.json` cho SQL Express / SQL Server local, rồi apply migration + chạy API (xem thêm mục **EF Core Migrations** ở trên):
 
-```bash
-cd backend
-dotnet ef database update --project src/PassDo.Infrastructure --startup-project src/PassDo.Api
-dotnet run --project src/PassDo.Api
+```powershell
+cd E:\WebPassDo
+dotnet ef database update `
+  --project backend/src/PassDo.Infrastructure/PassDo.Infrastructure.csproj `
+  --startup-project backend/src/PassDo.Api/PassDo.Api.csproj
+dotnet run --project backend/src/PassDo.Api/PassDo.Api.csproj
 ```
 
 Local mặc định: http://localhost:8080/swagger

@@ -9,7 +9,6 @@ public class Order : BaseEntity
     public Guid ProductId { get; set; }
     public Guid BuyerId { get; set; }
     public Guid SellerId { get; set; }
-    public Guid? ShipperId { get; set; }
 
     public decimal ProductTotal { get; set; }
     public decimal ShippingFee { get; set; }

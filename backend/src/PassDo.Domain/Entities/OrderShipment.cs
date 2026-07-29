@@ -28,9 +28,6 @@ public class OrderShipment : BaseEntity
     public Guid? DeliveredConfirmedByUserId { get; set; }
     public string? DeliveryNote { get; set; }
 
-    // Legacy (no longer used for login shipper accounts)
-    public Guid? ShipperId { get; set; }
-    public DateTime? ShipperReceivedAt { get; set; }
     public string? CarrierName { get; set; }
 
     public Order Order { get; set; } = null!;
