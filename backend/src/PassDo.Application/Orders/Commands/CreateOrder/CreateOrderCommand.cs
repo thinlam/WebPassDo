@@ -125,13 +125,13 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
 
         var hasActiveOrder = await _context.Orders.AnyAsync(
             x => x.ProductId == product.Id
-                 && x.BuyerId == buyerId
+                 && !x.IsDeleted
                  && OrderStatusGroups.ActiveProcessing.Contains(x.Status),
             cancellationToken);
 
         if (hasActiveOrder)
         {
-            throw new ConflictException("You already have an active order for this product.");
+            throw new ConflictException("This product already has an active order.");
         }
 
         var buyer = await _context.Users.FirstAsync(x => x.Id == buyerId, cancellationToken);
@@ -247,10 +247,7 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
                 : "Người mua đã đặt hàng (COD).");
 
         product.Quantity -= request.Quantity;
-        if (product.Quantity <= 0)
-        {
-            product.Status = ProductStatus.Reserved;
-        }
+        product.Status = ProductStatus.Reserved;
 
         _context.Orders.Add(order);
         await _context.SaveChangesAsync(cancellationToken);
