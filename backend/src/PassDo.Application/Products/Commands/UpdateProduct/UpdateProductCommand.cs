@@ -126,7 +126,7 @@ public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand,
         product.AllowedDeliverySpeeds = OrderHelpers.JoinDeliverySpeeds(request.AllowedDeliverySpeeds);
 
         if (request.Status.HasValue
-            && request.Status is ProductStatus.Draft or ProductStatus.Available or ProductStatus.Hidden)
+            && request.Status is ProductStatus.Draft or ProductStatus.Active or ProductStatus.Hidden)
         {
             product.Status = request.Status.Value;
         }

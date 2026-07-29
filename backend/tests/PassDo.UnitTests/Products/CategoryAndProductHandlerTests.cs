@@ -75,11 +75,11 @@ public class CategoryAndProductHandlerTests
                 null,
                 AcceptedPaymentOption.CashOnDelivery,
                 new[] { DeliverySpeed.Standard },
-                ProductStatus.Available),
+                ProductStatus.Active),
             CancellationToken.None);
 
         result.SellerId.Should().Be(sellerId);
-        result.Status.Should().Be(ProductStatus.Available.ToString());
+        result.Status.Should().Be(nameof(ProductStatus.Draft));
         result.Name.Should().Be("Áo khoác");
     }
 }

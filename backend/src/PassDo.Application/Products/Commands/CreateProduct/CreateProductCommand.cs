@@ -41,9 +41,6 @@ public class CreateProductCommandValidator : AbstractValidator<CreateProductComm
         RuleFor(x => x.Condition).IsInEnum();
         RuleFor(x => x.AcceptedPaymentOption).IsInEnum();
         RuleFor(x => x.AllowedDeliverySpeeds).NotEmpty();
-        RuleFor(x => x.Status)
-            .Must(x => x is ProductStatus.Draft or ProductStatus.Available or ProductStatus.Hidden)
-            .When(x => x.Status.HasValue);
     }
 }
 
@@ -101,7 +98,7 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
             OriginalPrice = request.OriginalPrice,
             SellingPrice = request.SellingPrice,
             Condition = request.Condition,
-            Status = request.Status ?? ProductStatus.Draft,
+            Status = ProductStatus.Draft,
             Location = request.Location.Trim(),
             Quantity = request.Quantity,
             CategoryId = request.CategoryId,

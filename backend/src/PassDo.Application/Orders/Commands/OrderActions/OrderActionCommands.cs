@@ -504,7 +504,7 @@ public class OrderActionHandler :
         product.Quantity += qty;
         if (product.Status is ProductStatus.Reserved or ProductStatus.Sold)
         {
-            product.Status = ProductStatus.Available;
+            product.Status = ProductStatus.Active;
         }
     }
 

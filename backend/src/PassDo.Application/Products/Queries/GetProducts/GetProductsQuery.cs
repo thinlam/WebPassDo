@@ -62,7 +62,7 @@ public class GetProductsQueryHandler : IRequestHandler<GetProductsQuery, PagedRe
         }
         else
         {
-            query = query.Where(x => x.Status == ProductStatus.Available);
+            query = query.Where(x => x.Status == ProductStatus.Active);
         }
 
         if (!string.IsNullOrWhiteSpace(request.Keyword))

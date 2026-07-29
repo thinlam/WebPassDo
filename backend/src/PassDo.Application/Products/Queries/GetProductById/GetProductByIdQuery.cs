@@ -52,7 +52,7 @@ public class GetProductByIdQueryHandler : IRequestHandler<GetProductByIdQuery, P
         }
 
         // Count a view for public browsing (skip seller viewing their own listing).
-        if (!isOwner && product.Status == ProductStatus.Available)
+        if (!isOwner && product.Status == ProductStatus.Active)
         {
             var tracked = await _context.Products.FirstAsync(x => x.Id == product.Id, cancellationToken);
             tracked.ViewCount += 1;

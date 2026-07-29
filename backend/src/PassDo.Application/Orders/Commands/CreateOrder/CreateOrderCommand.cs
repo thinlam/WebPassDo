@@ -78,7 +78,7 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
             throw new ConflictException("You cannot buy your own product.");
         }
 
-        if (product.Status is not ProductStatus.Available)
+        if (product.Status is not ProductStatus.Active)
         {
             throw new ConflictException($"Product is not available for purchase (status: {product.Status}).");
         }
