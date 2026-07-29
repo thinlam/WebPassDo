@@ -15,11 +15,12 @@ import type { OrderStatus } from '../types'
 const STATUS_TABS: { key: string; label: string; value?: OrderStatus }[] = [
   { key: 'all', label: 'Tất cả' },
   { key: 'AwaitingPayment', label: 'Chờ thanh toán', value: 'AwaitingPayment' },
-  { key: 'PendingConfirmation', label: 'Chờ xác nhận', value: 'PendingConfirmation' },
-  { key: 'AwaitingPreparation', label: 'Chờ chuẩn bị hàng', value: 'AwaitingPreparation' },
-  { key: 'AwaitingHandover', label: 'Chờ bàn giao', value: 'AwaitingHandover' },
+  { key: 'PendingSellerConfirmation', label: 'Chờ xác nhận', value: 'PendingSellerConfirmation' },
+  { key: 'Preparing', label: 'Đang chuẩn bị hàng', value: 'Preparing' },
+  { key: 'ReadyForShipment', label: 'Chờ bàn giao', value: 'ReadyForShipment' },
   { key: 'Shipping', label: 'Đang giao', value: 'Shipping' },
   { key: 'Delivered', label: 'Đã giao', value: 'Delivered' },
+  { key: 'Completed', label: 'Hoàn tất', value: 'Completed' },
   { key: 'Cancelled', label: 'Đã hủy', value: 'Cancelled' },
 ]
 

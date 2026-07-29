@@ -51,6 +51,7 @@ export function OrderDetailPage() {
   const cancelM = useMutation(act(() => ordersApi.cancel(id, actionNote || undefined)))
   const markPreparedM = useMutation(act(() => ordersApi.markPrepared(id)))
   const confirmDeliveredM = useMutation(act(() => ordersApi.confirmDelivered(id)))
+  const completeM = useMutation(act(() => ordersApi.complete(id)))
   const failDeliveryM = useMutation(act(() => ordersApi.failDelivery(id, actionNote || 'Giao thất bại')))
 
   const [proofUrl, setProofUrl] = useState('')
@@ -339,7 +340,12 @@ export function OrderDetailPage() {
                 {confirmDeliveredM.isPending ? 'Đang xác nhận...' : 'Xác nhận đã nhận hàng'}
               </Button>
             )}
-            {isBuyer && ['AwaitingPayment', 'PendingConfirmation'].includes(o.status) && (
+            {isBuyer && o.status === 'Delivered' && (
+              <Button onClick={() => completeM.mutate()} disabled={completeM.isPending}>
+                {completeM.isPending ? 'Đang xác nhận...' : 'Xác nhận đã nhận hàng'}
+              </Button>
+            )}
+            {isBuyer && ['AwaitingPayment', 'PendingSellerConfirmation'].includes(o.status) && (
               <Button variant="danger" onClick={() => cancelM.mutate()} disabled={cancelM.isPending}>
                 Hủy đơn
               </Button>
@@ -351,7 +357,7 @@ export function OrderDetailPage() {
                 Xác nhận thanh toán
               </Button>
             )}
-            {isSeller && o.status === 'PendingConfirmation' && (
+            {isSeller && o.status === 'PendingSellerConfirmation' && (
               <>
                 <Button onClick={() => confirmM.mutate()} disabled={confirmM.isPending}>
                   Xác nhận đơn
@@ -361,17 +367,17 @@ export function OrderDetailPage() {
                 </Button>
               </>
             )}
-            {isSeller && (o.status === 'AwaitingPreparation' || (o.status === 'AwaitingPickup' && !o.preparedAt)) && (
+            {isSeller && o.status === 'Preparing' && (
               <Button onClick={() => markPreparedM.mutate()} disabled={markPreparedM.isPending}>
                 Đã chuẩn bị hàng
               </Button>
             )}
-            {isSeller && (o.status === 'AwaitingHandover' || (o.status === 'AwaitingPickup' && !!o.preparedAt)) && (
+            {isSeller && o.status === 'ReadyForShipment' && (
               <Button onClick={() => setShowHandoverModal(true)}>
                 Bàn giao cho vận chuyển
               </Button>
             )}
-            {isSeller && ['AwaitingPayment', 'PendingConfirmation'].includes(o.status) && (
+            {isSeller && ['AwaitingPayment', 'PendingSellerConfirmation'].includes(o.status) && (
               <Button variant="danger" onClick={() => rejectM.mutate()} disabled={rejectM.isPending}>
                 Từ chối / Hủy đơn
               </Button>
