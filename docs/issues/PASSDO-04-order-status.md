@@ -2,7 +2,7 @@
 
 ## Trạng thái
 
-- [ ] Đã làm
+- [x] Đã làm (2026-07-29)
 - [ ] Đã cập nhật thêm
 
 ## Trạng thái đề xuất (roadmap)
@@ -24,12 +24,12 @@
 
 | Hạng mục | Nội dung |
 | -------- | -------- |
-| Backend | ⚠️ `AwaitingPayment, PendingConfirmation, AwaitingPreparation, AwaitingHandover, Shipping, Delivered, Cancelled, DeliveryFailed, Returned, Refunded` |
-| Frontend | ✅ Timeline `statusHistory`; label map theo enum hiện tại |
-| Database | ✅ `OrderStatusHistories` (Old/New/ChangedBy/Note) |
-| API | Confirm/reject/prepare/hand-over/deliver/fail/cancel — validate status trước khi chuyển |
-| Lỗi hiện tại | Naming lệch roadmap; **thiếu `Completed`, `Disputed`**; `Refunded` có enum nhưng chưa có flow set; không có bảng transition trung tâm |
-| Việc tiếp theo | Map/rename enum + thêm Completed/Disputed + state machine table |
+| Backend | ✅ `AwaitingPayment, PendingSellerConfirmation, Preparing, ReadyForShipment, Shipping, Delivered, Completed, Cancelled, DeliveryFailed, Returned, Refunded` |
+| Frontend | ✅ Type union + label map + tabs + buyer complete button |
+| Database | ✅ `OrderStatusHistories` + migration đổi 3 chuỗi cũ; `Orders.CompletedAt` nullable |
+| API | ✅ POST /api/orders/{id}/complete (buyer/admin; idempotent) + tất cả action cũ |
+| State machine | ✅ `OrderStatusTransitions` static helper (IsTerminal/IsActive/CanBuyerConfirmComplete/IsProductReserving) |
+| Còn lại | `Disputed` (PASSDO-18); auto-complete background job (defer); Refunded flow (defer) |
 
 ## Mapping đề xuất (hiện tại → roadmap)
 
@@ -51,10 +51,10 @@
 - [x] Chặn chuyển sai thứ tự (ad-hoc trong từng handler)
 - [x] Hủy có lý do (string)
 - [x] Lưu lịch sử mỗi lần đổi status
-- [ ] Thêm `Completed` sau Delivered (buyer/seller confirm settle)
-- [ ] Thêm `Disputed` (PASSDO-18)
-- [ ] State machine tập trung (tránh logic rải rác)
+- [x] Thêm `Completed` sau Delivered — buyer confirm; idempotent; CompletedAt
+- [ ] Thêm `Disputed` (PASSDO-18 — defer)
+- [x] State machine tập trung (`OrderStatusTransitions` static helper)
 
 ## Definition of Done
 
-Trạng thái đúng luồng, API từ chối thao tác không hợp lệ, có timeline — **partial** (timeline + guard có; naming/Completed/Disputed chưa đạt).
+Trạng thái đúng luồng, API từ chối thao tác không hợp lệ, có timeline — **Done (core)**. Còn: Disputed (PASSDO-18), auto-complete background job, Refunded flow.
