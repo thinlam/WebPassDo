@@ -18,7 +18,7 @@
 | ID | Task | Trạng thái | Đã làm | Cần cập nhật thêm |
 | -- | ---- | ---------- | ------ | ----------------- |
 | PASSDO-01 | Audit source hiện tại | ✅ Done | [x] | [x] (tài liệu này) |
-| PASSDO-02 | Chuẩn hóa tài khoản & quyền | ✅ Done (cốt lõi) | [x] | [ ] dọn cột Shipper thừa |
+| PASSDO-02 | Chuẩn hóa tài khoản & quyền | ✅ Done | [x] | [x] migration `RemoveLegacyShipperFields` + ownership tests |
 | PASSDO-03 | Chuẩn hóa trạng thái sản phẩm | ⬜ Chưa đạt roadmap | [ ] | [ ] |
 | PASSDO-04 | Chuẩn hóa trạng thái đơn hàng | ⬜ Chưa đạt roadmap | [ ] | [ ] |
 | PASSDO-05 | Fix DeliveryCompany | ✅ Done (cốt lõi) | [x] | [ ] tách DTO / self-delivery |
@@ -46,10 +46,10 @@
 | -------- | -------- |
 | Backend | ✅ JWT + refresh + Google login + change password. Role chỉ `User`/`Admin`. ❌ Forgot password, rate limit login, email verify riêng |
 | Frontend | ✅ Login/Register, show-hide password, strength meter, Google button, Đơn mua / Đơn bán. ❌ Forgot password, Remember me, refresh token khi 401 |
-| Database | ✅ `Users`, `RefreshTokens`. ❌ Không còn role Shipper (đã migrate). Còn cột legacy `ShipperId` trên Order/Shipment |
+| Database | ✅ `Users`, `RefreshTokens`. Role chỉ `User`/`Admin`. Đã drop cột legacy `ShipperId` / `ShipperReceivedAt` (`RemoveLegacyShipperFields`) |
 | API | `POST /api/auth/register`, `/login`, `/google`, `/refresh-token`, `/logout`, `/change-password` |
 | Lỗi hiện tại | Frontend build fail nếu chưa `npm install`; 401 force logout thay vì refresh |
-| Việc tiếp theo | PASSDO-02 dọn legacy; PASSDO-08 hoàn thiện UX/bảo mật auth |
+| Việc tiếp theo | PASSDO-08 hoàn thiện UX/bảo mật auth |
 
 ### Products
 
