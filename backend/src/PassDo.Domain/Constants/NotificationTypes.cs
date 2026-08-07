@@ -8,6 +8,7 @@ public static class NotificationTypes
     public const string OrderHandedOver = "OrderHandedOver";
     public const string OrderShipping = "OrderShipping";
     public const string OrderDelivered = "OrderDelivered";
+    public const string OrderCompleted = "OrderCompleted";
     public const string OrderCancelled = "OrderCancelled";
     public const string NewMessage = "NewMessage";
 }

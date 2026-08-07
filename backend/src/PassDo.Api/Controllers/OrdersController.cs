@@ -142,6 +142,13 @@ public class OrdersController : ControllerBase
         return Ok(ApiResponse<object>.Ok(result, "Delivery confirmed."));
     }
 
+    [HttpPost("{id:guid}/complete")]
+    public async Task<ActionResult<ApiResponse<object>>> Complete(Guid id)
+    {
+        var result = await _mediator.Send(new CompleteOrderCommand(id));
+        return Ok(ApiResponse<object>.Ok(result));
+    }
+
     [HttpPost("{id:guid}/fail-delivery")]
     public async Task<ActionResult<ApiResponse<object>>> FailDelivery(Guid id, [FromBody] ReasonRequest request)
     {

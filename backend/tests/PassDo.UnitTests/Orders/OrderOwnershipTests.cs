@@ -46,7 +46,7 @@ public class OrderOwnershipTests
         PassDoDbContext db,
         Guid buyerId,
         Guid sellerId,
-        OrderStatus status = OrderStatus.PendingConfirmation)
+        OrderStatus status = OrderStatus.PendingSellerConfirmation)
     {
         var productId = Guid.NewGuid();
         db.Users.AddRange(
@@ -136,7 +136,7 @@ public class OrderOwnershipTests
         var sellerId = Guid.NewGuid();
         var strangerId = Guid.NewGuid();
         var (db, _, handler) = CreateSut(strangerId);
-        var order = SeedOrder(db, buyerId, sellerId, OrderStatus.PendingConfirmation);
+        var order = SeedOrder(db, buyerId, sellerId, OrderStatus.PendingSellerConfirmation);
 
         var act = async () => await handler.Handle(new ConfirmOrderCommand(order.Id, null), CancellationToken.None);
 
@@ -150,7 +150,7 @@ public class OrderOwnershipTests
         var buyerId = Guid.NewGuid();
         var sellerId = Guid.NewGuid();
         var (db, _, handler) = CreateSut(buyerId);
-        var order = SeedOrder(db, buyerId, sellerId, OrderStatus.PendingConfirmation);
+        var order = SeedOrder(db, buyerId, sellerId, OrderStatus.PendingSellerConfirmation);
 
         var act = async () => await handler.Handle(new ConfirmOrderCommand(order.Id, null), CancellationToken.None);
 
@@ -164,7 +164,7 @@ public class OrderOwnershipTests
         var buyerId = Guid.NewGuid();
         var sellerId = Guid.NewGuid();
         var (db, _, handler) = CreateSut(sellerId);
-        var order = SeedOrder(db, buyerId, sellerId, OrderStatus.PendingConfirmation);
+        var order = SeedOrder(db, buyerId, sellerId, OrderStatus.PendingSellerConfirmation);
 
         var act = async () => await handler.Handle(new CancelOrderCommand(order.Id, "nope"), CancellationToken.None);
 

@@ -67,6 +67,9 @@ export const ordersApi = {
   confirmDelivered: (id: string) =>
     unwrap(apiClient.post<ApiResponse<OrderDetail>>(`/orders/${id}/confirm-delivered`)),
 
+  complete: (id: string) =>
+    unwrap(apiClient.post<ApiResponse<OrderDetail>>(`/orders/${id}/complete`)),
+
   failDelivery: (id: string, reason: string) =>
     unwrap(apiClient.post<ApiResponse<OrderDetail>>(`/orders/${id}/fail-delivery`, { reason })),
 }

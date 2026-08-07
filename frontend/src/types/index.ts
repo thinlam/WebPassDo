@@ -52,12 +52,12 @@ export type ProductStatus =
 
 export type OrderStatus =
   | 'AwaitingPayment'
-  | 'PendingConfirmation'
-  | 'AwaitingPreparation'
-  | 'AwaitingHandover'
-  | 'AwaitingPickup'
+  | 'PendingSellerConfirmation'
+  | 'Preparing'
+  | 'ReadyForShipment'
   | 'Shipping'
   | 'Delivered'
+  | 'Completed'
   | 'Cancelled'
   | 'DeliveryFailed'
   | 'Returned'

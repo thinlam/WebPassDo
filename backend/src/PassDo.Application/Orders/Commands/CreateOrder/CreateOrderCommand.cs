@@ -148,7 +148,7 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
 
         var initialStatus = request.PaymentMethod == PaymentMethod.BankTransfer
             ? OrderStatus.AwaitingPayment
-            : OrderStatus.PendingConfirmation;
+            : OrderStatus.PendingSellerConfirmation;
 
         var paymentStatus = request.PaymentMethod == PaymentMethod.BankTransfer
             ? PaymentStatus.Unpaid

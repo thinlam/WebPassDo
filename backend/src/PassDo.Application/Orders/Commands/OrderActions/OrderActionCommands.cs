@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using PassDo.Application.Common.Exceptions;
 using PassDo.Application.Common.Interfaces;
 using PassDo.Application.Common.Options;
+using PassDo.Application.Orders;
 using PassDo.Application.Orders.DTOs;
 using PassDo.Application.Orders.Helpers;
 using PassDo.Application.Orders.Mappings;
@@ -30,6 +31,7 @@ public record HandOverToCourierCommand(
     DateTime? EstimatedDeliveryFrom,
     DateTime? EstimatedDeliveryTo) : IRequest<OrderDetailDto>;
 public record ConfirmDeliveredCommand(Guid OrderId) : IRequest<OrderDetailDto>;
+public record CompleteOrderCommand(Guid OrderId) : IRequest<OrderDetailDto>;
 public record FailDeliveryCommand(Guid OrderId, string Reason) : IRequest<OrderDetailDto>;
 
 public class RejectOrderCommandValidator : AbstractValidator<RejectOrderCommand>
@@ -78,6 +80,7 @@ public class OrderActionHandler :
     IRequestHandler<MarkPreparedCommand, OrderDetailDto>,
     IRequestHandler<HandOverToCourierCommand, OrderDetailDto>,
     IRequestHandler<ConfirmDeliveredCommand, OrderDetailDto>,
+    IRequestHandler<CompleteOrderCommand, OrderDetailDto>,
     IRequestHandler<FailDeliveryCommand, OrderDetailDto>
 {
     private readonly IApplicationDbContext _context;
@@ -118,7 +121,7 @@ public class OrderActionHandler :
                 order.Payment.Note = request.Note;
             }
 
-            ChangeStatus(order, OrderStatus.PendingConfirmation, "Đã xác nhận thanh toán chuyển khoản.");
+            ChangeStatus(order, OrderStatus.PendingSellerConfirmation, "Đã xác nhận thanh toán chuyển khoản.");
             await Task.CompletedTask;
         }, ct);
 
@@ -147,13 +150,13 @@ public class OrderActionHandler :
         => Transition(request.OrderId, order =>
         {
             EnsureSellerOrAdmin(order);
-            if (order.Status != OrderStatus.PendingConfirmation)
+            if (order.Status != OrderStatus.PendingSellerConfirmation)
             {
                 throw new ConflictException("Only pending confirmation orders can be confirmed.");
             }
 
             order.ConfirmedAt = _clock.UtcNow;
-            ChangeStatus(order, OrderStatus.AwaitingPreparation, request.Note ?? "Đơn hàng đã được xác nhận.");
+            ChangeStatus(order, OrderStatus.Preparing, request.Note ?? "Đơn hàng đã được xác nhận.");
             return Task.CompletedTask;
         }, ct, afterSave: order => NotifyBuyer(
             order,
@@ -166,7 +169,7 @@ public class OrderActionHandler :
         => Transition(request.OrderId, async order =>
         {
             EnsureSellerOrAdmin(order);
-            if (order.Status is not (OrderStatus.PendingConfirmation or OrderStatus.AwaitingPayment))
+            if (order.Status is not (OrderStatus.PendingSellerConfirmation or OrderStatus.AwaitingPayment))
             {
                 throw new ConflictException("Order cannot be rejected in the current status.");
             }
@@ -186,7 +189,7 @@ public class OrderActionHandler :
         => Transition(request.OrderId, async order =>
         {
             EnsureBuyer(order);
-            if (order.Status is not (OrderStatus.AwaitingPayment or OrderStatus.PendingConfirmation))
+            if (order.Status is not (OrderStatus.AwaitingPayment or OrderStatus.PendingSellerConfirmation))
             {
                 throw new ConflictException("Only unpaid/unconfirmed orders can be cancelled by buyer.");
             }
@@ -207,7 +210,7 @@ public class OrderActionHandler :
         => Transition(request.OrderId, order =>
         {
             EnsureSellerOrAdmin(order);
-            if (order.Status != OrderStatus.AwaitingPreparation)
+            if (order.Status != OrderStatus.Preparing)
             {
                 throw new ConflictException("Order is not awaiting preparation.");
             }
@@ -218,7 +221,7 @@ public class OrderActionHandler :
                 order.Shipment.PreparedByUserId = _currentUser.UserId;
             }
 
-            ChangeStatus(order, OrderStatus.AwaitingHandover, "Người bán đã chuẩn bị hàng.");
+            ChangeStatus(order, OrderStatus.ReadyForShipment, "Người bán đã chuẩn bị hàng.");
             return Task.CompletedTask;
         }, ct, afterSave: order => NotifyBuyer(
             order,
@@ -231,7 +234,7 @@ public class OrderActionHandler :
         => Transition(request.OrderId, order =>
         {
             EnsureSellerOrAdmin(order);
-            if (order.Status != OrderStatus.AwaitingHandover)
+            if (order.Status != OrderStatus.ReadyForShipment)
             {
                 throw new ConflictException("Order is not awaiting handover to courier.");
             }
@@ -357,6 +360,44 @@ public class OrderActionHandler :
                     $"Đơn hàng {order.OrderCode} - \"{ProductName(order)}\" đã giao thành công. Cảm ơn bạn đã mua hàng trên PassDo.",
                     ct);
             }
+        });
+    }
+
+    public Task<OrderDetailDto> Handle(CompleteOrderCommand request, CancellationToken ct)
+    {
+        var didComplete = false;
+        return Transition(request.OrderId, order =>
+        {
+            EnsureBuyer(order);
+
+            if (order.Status == OrderStatus.Completed)
+            {
+                return Task.CompletedTask;
+            }
+
+            if (!OrderStatusTransitions.CanBuyerConfirmComplete(order.Status))
+            {
+                throw new ConflictException("Only delivered orders can be completed.");
+            }
+
+            order.CompletedAt = _clock.UtcNow;
+            ChangeStatus(order, OrderStatus.Completed, "Người mua đã xác nhận hoàn tất đơn.");
+            didComplete = true;
+
+            return Task.CompletedTask;
+        }, ct, afterSave: order =>
+        {
+            if (!didComplete)
+            {
+                return Task.CompletedTask;
+            }
+
+            return NotifySeller(
+                order,
+                NotificationTypes.OrderCompleted,
+                "Đơn hàng đã hoàn tất",
+                $"Người mua đã xác nhận hoàn tất đơn {order.OrderCode} - \"{ProductName(order)}\".",
+                ct);
         });
     }
 

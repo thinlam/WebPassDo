@@ -2,12 +2,12 @@ import type { OrderStatus } from '../types'
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   AwaitingPayment: 'Chờ thanh toán',
-  PendingConfirmation: 'Chờ xác nhận',
-  AwaitingPreparation: 'Chờ chuẩn bị hàng',
-  AwaitingHandover: 'Chờ bàn giao',
-  AwaitingPickup: 'Chờ chuẩn bị hàng',
+  PendingSellerConfirmation: 'Chờ xác nhận',
+  Preparing: 'Đang chuẩn bị hàng',
+  ReadyForShipment: 'Chờ bàn giao',
   Shipping: 'Đang giao hàng',
   Delivered: 'Đã giao',
+  Completed: 'Hoàn tất',
   Cancelled: 'Đã hủy',
   DeliveryFailed: 'Giao thất bại',
   Returned: 'Trả hàng',
@@ -21,6 +21,7 @@ export function getStatusLabel(status: string): string {
 export function getStatusTone(status: string) {
   switch (status) {
     case 'Delivered':
+    case 'Completed':
       return 'success' as const
     case 'Cancelled':
     case 'DeliveryFailed':
@@ -28,10 +29,10 @@ export function getStatusTone(status: string) {
     case 'Refunded':
       return 'danger' as const
     case 'Shipping':
-    case 'AwaitingHandover':
       return 'warn' as const
-    case 'AwaitingPreparation':
-    case 'AwaitingPickup':
+    case 'ReadyForShipment':
+    case 'Preparing':
+    case 'PendingSellerConfirmation':
       return 'warn' as const
     default:
       return 'neutral' as const
