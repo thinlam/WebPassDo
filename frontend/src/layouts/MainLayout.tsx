@@ -15,12 +15,24 @@ const linkClass = ({ isActive }: { isActive: boolean }) =>
 
 const googleClientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined) || 'unused'
 
+const mobileNavItems = [
+  { to: '/', label: 'Khám phá', end: true },
+  { to: '/products/new', label: 'Đăng bán' },
+  { to: '/my-products', label: 'Đồ của tôi' },
+  { to: '/favorites', label: 'Yêu thích' },
+  { to: '/purchases', label: 'Đơn mua' },
+  { to: '/sales', label: 'Đơn bán' },
+  { to: '/messages', label: 'Tin nhắn' },
+  { to: '/settings', label: 'Cài đặt' },
+] as const
+
 export function MainLayout() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const user = useAuthStore((s) => s.user)
   const refreshToken = useAuthStore((s) => s.refreshToken)
   const logout = useAuthStore((s) => s.logout)
   const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   const handleLogout = async () => {
@@ -43,14 +55,36 @@ export function MainLayout() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  useEffect(() => {
+    document.body.style.overflow = mobileMenuOpen ? 'hidden' : ''
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [mobileMenuOpen])
+
   return (
     <GoogleOAuthProvider clientId={googleClientId}>
       <div className="min-h-screen">
         <header className="sticky top-0 z-20 border-b border-line/80 bg-paper/90 backdrop-blur">
-          <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 md:px-6">
-            <Link to="/" className="font-display text-2xl text-forest">
-              PassDo
-            </Link>
+          <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 md:gap-4 md:px-6 md:py-4">
+            <div className="flex items-center gap-2">
+              {isAuthenticated && (
+                <button
+                  type="button"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-md text-ink transition hover:bg-sand md:hidden"
+                  aria-label="Mở menu"
+                  aria-expanded={mobileMenuOpen}
+                  onClick={() => setMobileMenuOpen(true)}
+                >
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                </button>
+              )}
+              <Link to="/" className="font-display text-2xl text-forest">
+                PassDo
+              </Link>
+            </div>
 
             <nav className="hidden items-center gap-5 md:flex">
               <NavLink to="/" end className={linkClass}>
@@ -85,18 +119,26 @@ export function MainLayout() {
                 <div className="relative" ref={dropdownRef}>
                   <button
                     onClick={() => setDropdownOpen((v) => !v)}
-                    className="hidden items-center gap-2 rounded-md px-3 py-1.5 text-sm text-muted transition hover:bg-sand hover:text-ink sm:flex"
+                    className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted transition hover:bg-sand hover:text-ink sm:px-3"
+                    aria-label="Tài khoản"
                   >
-                    {user?.avatarUrl && (
-                      <img src={user.avatarUrl} alt="" className="h-6 w-6 rounded-full object-cover" />
+                    {user?.avatarUrl ? (
+                      <img src={user.avatarUrl} alt="" className="h-7 w-7 rounded-full object-cover sm:h-6 sm:w-6" />
+                    ) : (
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-sand text-xs font-semibold text-forest sm:h-6 sm:w-6">
+                        {(user?.fullName?.[0] ?? 'U').toUpperCase()}
+                      </span>
                     )}
-                    <span>{user?.fullName}</span>
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <span className="hidden max-w-[10rem] truncate sm:inline">{user?.fullName}</span>
+                    <svg className="hidden h-4 w-4 sm:block" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>
                   {dropdownOpen && (
                     <div className="absolute right-0 top-full z-30 mt-1 w-56 rounded-xl border border-line bg-surface py-1 shadow-lg">
+                      <DropdownLink to="/settings" onClick={() => setDropdownOpen(false)}>
+                        Cài đặt
+                      </DropdownLink>
                       <DropdownLink to="/profile" onClick={() => setDropdownOpen(false)}>
                         Thông tin cá nhân
                       </DropdownLink>
@@ -151,33 +193,63 @@ export function MainLayout() {
               )}
             </div>
           </div>
-
-          {isAuthenticated && (
-            <div className="flex gap-4 overflow-x-auto border-t border-line px-4 py-2 md:hidden">
-              <NavLink to="/products/new" className={linkClass}>
-                Đăng bán
-              </NavLink>
-              <NavLink to="/my-products" className={linkClass}>
-                Của tôi
-              </NavLink>
-              <NavLink to="/favorites" className={linkClass}>
-                Yêu thích
-              </NavLink>
-              <NavLink to="/purchases" className={linkClass}>
-                Mua
-              </NavLink>
-              <NavLink to="/sales" className={linkClass}>
-                Bán
-              </NavLink>
-              <NavLink to="/messages" className={linkClass}>
-                Tin nhắn
-              </NavLink>
-              <NavLink to="/settings" className={linkClass}>
-                Cài đặt
-              </NavLink>
-            </div>
-          )}
         </header>
+
+        {mobileMenuOpen && (
+          <div className="fixed inset-0 z-40 md:hidden">
+            <button
+              type="button"
+              className="absolute inset-0 bg-ink/40"
+              aria-label="Đóng menu"
+              onClick={() => setMobileMenuOpen(false)}
+            />
+            <aside className="absolute left-0 top-0 flex h-full w-[min(20rem,85vw)] flex-col bg-paper shadow-xl">
+              <div className="flex items-center justify-between border-b border-line px-4 py-4">
+                <p className="font-display text-xl text-forest">Menu</p>
+                <button
+                  type="button"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-md hover:bg-sand"
+                  aria-label="Đóng"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <nav className="flex-1 overflow-y-auto px-2 py-3">
+                {mobileNavItems.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={'end' in item ? item.end : false}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={({ isActive }) =>
+                      `mb-1 block rounded-xl px-4 py-3 text-base transition ${
+                        isActive ? 'bg-sand font-semibold text-forest' : 'text-ink hover:bg-sand/70'
+                      }`
+                    }
+                  >
+                    {item.label}
+                  </NavLink>
+                ))}
+                {user?.role === 'Admin' && (
+                  <NavLink
+                    to="/admin/categories"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={({ isActive }) =>
+                      `mb-1 block rounded-xl px-4 py-3 text-base transition ${
+                        isActive ? 'bg-sand font-semibold text-forest' : 'text-ink hover:bg-sand/70'
+                      }`
+                    }
+                  >
+                    Danh mục
+                  </NavLink>
+                )}
+              </nav>
+            </aside>
+          </div>
+        )}
 
         {isAuthenticated && <PresenceProvider />}
         {isAuthenticated && <NotificationRealtimeBridge />}

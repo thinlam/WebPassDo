@@ -42,34 +42,34 @@ export function HomePage() {
     <div>
       <section className="relative overflow-hidden border-b border-line">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(31,95,74,0.18),transparent_35%),radial-gradient(circle_at_80%_0%,rgba(243,201,107,0.25),transparent_30%)]" />
-        <div className="relative mx-auto grid max-w-6xl gap-8 px-4 py-16 md:grid-cols-[1.1fr_0.9fr] md:px-6 md:py-24">
-          <div className="space-y-5">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-forest">Pass đồ thông minh</p>
-            <h1 className="font-display text-4xl leading-tight text-ink md:text-6xl">
+        <div className="relative mx-auto grid max-w-6xl gap-6 px-5 py-12 sm:gap-8 sm:px-6 md:grid-cols-[1.1fr_0.9fr] md:py-24">
+          <div className="space-y-4 sm:space-y-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-forest sm:text-sm">Pass đồ thông minh</p>
+            <h1 className="font-display text-4xl leading-tight text-ink sm:text-5xl md:text-6xl">
               PassDo
             </h1>
             <p className="max-w-xl text-base text-muted md:text-lg">
               Đăng bán lại đồ cá nhân còn dùng được — nhanh, rõ ràng, gần bạn.
             </p>
-            <div className="flex flex-wrap gap-3">
-              <Link to="/products/new">
-                <Button>Đăng bán ngay</Button>
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <Link to="/products/new" className="sm:w-auto">
+                <Button className="w-full sm:w-auto">Đăng bán ngay</Button>
               </Link>
-              <a href="#listing">
-                <Button variant="secondary">Xem đồ đang pass</Button>
+              <a href="#listing" className="sm:w-auto">
+                <Button variant="secondary" className="w-full sm:w-auto">Xem đồ đang pass</Button>
               </a>
             </div>
           </div>
-          <div className="min-h-56 rounded-[2rem] bg-[linear-gradient(145deg,#1f5f4a_0%,#2f7d62_45%,#f3c96b_100%)] p-8 text-white shadow-lg">
-            <p className="font-display text-3xl">Đồ đẹp không nên bỏ phí</p>
-            <p className="mt-4 max-w-sm text-sm text-white/85">
+          <div className="min-h-48 rounded-[1.5rem] bg-[linear-gradient(145deg,#1f5f4a_0%,#2f7d62_45%,#f3c96b_100%)] p-6 text-white shadow-lg sm:min-h-56 sm:rounded-[2rem] sm:p-8">
+            <p className="font-display text-2xl sm:text-3xl">Đồ đẹp không nên bỏ phí</p>
+            <p className="mt-3 max-w-sm text-sm text-white/85 sm:mt-4">
               Mỹ phẩm, thời trang, điện tử, đồ gia dụng — tìm người cần và pass tiếp vòng đời sản phẩm.
             </p>
           </div>
         </div>
       </section>
 
-      <section id="listing" className="mx-auto max-w-6xl px-4 py-10 md:px-6">
+      <section id="listing" className="mx-auto max-w-6xl px-5 py-10 sm:px-6">
         <div className="mb-6 grid gap-3 rounded-2xl border border-line bg-white/80 p-4 md:grid-cols-4">
           <Input
             placeholder="Tìm theo tên..."
