@@ -2,23 +2,23 @@
 
 ## Trạng thái
 
-- [x] Đã làm (cốt lõi — lỗi field name đã fix)
-- [ ] Đã cập nhật thêm
+- [x] Đã làm (cốt lõi — lỗi field name / required sai chỗ đã fix)
+- [x] Đã cập nhật thêm (dropdown VN + message VI)
 
 ## Vấn đề gốc
 
-Frontend gửi `company` thay vì `deliveryCompany` → FluentValidation báo `The DeliveryCompany field is required` khi **bàn giao vận chuyển**.
+Frontend gửi `company` thay vì `deliveryCompany` → FluentValidation báo `The DeliveryCompany field is required` khi **bàn giao vận chuyển**. Create/Confirm đôi khi cũng dính lỗi nếu payload/validator không tách đúng.
 
-## Hiện trạng
+## Hiện trạng (source)
 
 | Hạng mục | Nội dung |
 | -------- | -------- |
-| Backend | ✅ `DeliveryCompany` chỉ required trong `HandOverToCourierCommandValidator`. Create/Confirm/Prepare **không** yêu cầu |
-| Frontend | ✅ Hand-over modal gửi đúng `deliveryCompany`; validate phía client |
-| Database | ✅ `OrderShipments.DeliveryCompany` nullable |
-| API | `POST /api/orders/{id}/hand-over` — bắt buộc DeliveryCompany |
-| Lỗi hiện tại | Chưa tách rõ bộ request DTO theo action như roadmap; chưa hỗ trợ self-delivery “không cần đơn vị” rõ ràng |
-| Việc tiếp theo | Tách request records; optional company khi giao tận tay |
+| Backend | ✅ `DeliveryCompany` chỉ required trong `HandOverToCourierCommandValidator` (message tiếng Việt). Create / Confirm / Prepare **không** yêu cầu |
+| Frontend | ✅ Hand-over: dropdown đơn vị VN + “Khác”; validate phía client; gửi `deliveryCompany` |
+| Database | ✅ `OrderShipments.DeliveryCompany` nullable (`MaxLength` 150) |
+| API | `POST /api/orders/{id}/hand-over` — body `HandOverRequest`, bắt buộc `DeliveryCompany` |
+| Request DTO | ✅ Đã tách theo action: `CreateOrderRequest`, confirm dùng `NoteRequest`, prepare không body, `HandOverRequest` |
+| Self-delivery | → **PASSDO-21** (tự giao / gặp mặt / optional company) |
 
 ## Quy tắc (roadmap vs hiện tại)
 
@@ -33,15 +33,35 @@ Frontend gửi `company` thay vì `deliveryCompany` → FluentValidation báo `T
 
 - [x] Sửa payload FE (`deliveryCompany`, `deliveryPersonPhone`, …)
 - [x] Validate FE trước khi gọi API
-- [x] Create/Confirm không còn dính lỗi DeliveryCompany
+- [x] Create / Confirm / Prepare không còn dính lỗi DeliveryCompany
+- [x] BE: required chỉ ở hand-over; các action khác không bắt company
+- [x] DB: cột nullable
+- [x] Request contracts tách theo endpoint
+- [x] Dropdown đơn vị VN (GHN, GHTK, J&T, Viettel Post, SPX, Vietnam Post, Ninja Van, Best Express) + ô “Khác”
+- [x] Message FluentValidation hand-over tiếng Việt
 
-## Cần cập nhật thêm (chuyên nghiệp)
+## Ngoài phạm vi (PASSDO-21)
 
-- [ ] Tách rõ: `CreateOrderRequest`, `ConfirmOrderRequest`, `PrepareOrderRequest`, `UpdateShippingRequest` / `HandOverRequest`
-- [ ] Cho phép phương thức “Tự giao / Gặp mặt” → `DeliveryCompany` optional hoặc giá trị cố định `SelfDelivery`
-- [ ] Dropdown đơn vị vận chuyển phổ biến VN (GHN, GHTK, Viettel Post, …) + ô khác
-- [ ] Message lỗi tiếng Việt thống nhất
+- [ ] Phương thức “Tự giao / Gặp mặt / Tự thuê shipper” → `DeliveryCompany` optional hoặc giá trị cố định (vd. `SelfDelivery`)
+
+## Liên quan
+
+- **PASSDO-21** — hình thức VC, tự giao, tích hợp carrier, tracking.
+- **PASSDO-04** — order status / bàn giao Shipping.
+
+## File chính
+
+| Layer | Path |
+| ----- | ---- |
+| FE constants | `frontend/src/lib/deliveryCompanies.ts` |
+| FE modal | `frontend/src/pages/OrderDetailPage.tsx` |
+| BE validator | `backend/.../OrderActions/OrderActionCommands.cs` (`HandOverToCourierCommandValidator`) |
 
 ## Hoàn thành khi
 
-Người mua tạo đơn và người bán xác nhận **không** gặp lỗi DeliveryCompany — ✅ đã đạt.
+| Tiêu chí | Trạng thái |
+| -------- | ---------- |
+| Buyer tạo đơn / seller xác nhận **không** gặp lỗi DeliveryCompany | ✅ Đạt |
+| Hand-over bắt buộc đơn vị VC đúng field | ✅ Đạt |
+| Dropdown VN + message VI | ✅ Đạt |
+| Self-delivery optional company | → PASSDO-21 |

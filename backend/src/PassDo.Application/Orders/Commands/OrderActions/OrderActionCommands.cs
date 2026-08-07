@@ -55,19 +55,25 @@ public class HandOverToCourierCommandValidator : AbstractValidator<HandOverToCou
     {
         RuleFor(x => x.DeliveryPersonName)
             .Must(v => !string.IsNullOrWhiteSpace(v))
-            .WithMessage("Delivery person name is required.")
-            .MaximumLength(200);
+            .WithMessage("Vui lòng nhập tên người giao.")
+            .MaximumLength(200).WithMessage("Tên người giao tối đa 200 ký tự.");
         RuleFor(x => x.DeliveryPersonPhone)
             .Must(v => !string.IsNullOrWhiteSpace(v))
-            .WithMessage("Delivery person phone is required.")
-            .MaximumLength(30);
+            .WithMessage("Vui lòng nhập số điện thoại người giao.")
+            .MaximumLength(30).WithMessage("Số điện thoại tối đa 30 ký tự.");
         RuleFor(x => x.DeliveryCompany)
             .Must(v => !string.IsNullOrWhiteSpace(v))
-            .WithMessage("Delivery company is required.")
-            .MaximumLength(150);
-        RuleFor(x => x.VehicleNumber).MaximumLength(50).When(x => !string.IsNullOrWhiteSpace(x.VehicleNumber));
-        RuleFor(x => x.TrackingCode).MaximumLength(100).When(x => !string.IsNullOrWhiteSpace(x.TrackingCode));
-        RuleFor(x => x.DeliveryNote).MaximumLength(1000).When(x => !string.IsNullOrWhiteSpace(x.DeliveryNote));
+            .WithMessage("Vui lòng chọn hoặc nhập đơn vị vận chuyển.")
+            .MaximumLength(150).WithMessage("Đơn vị vận chuyển tối đa 150 ký tự.");
+        RuleFor(x => x.VehicleNumber)
+            .MaximumLength(50).WithMessage("Biển số xe tối đa 50 ký tự.")
+            .When(x => !string.IsNullOrWhiteSpace(x.VehicleNumber));
+        RuleFor(x => x.TrackingCode)
+            .MaximumLength(100).WithMessage("Mã vận đơn tối đa 100 ký tự.")
+            .When(x => !string.IsNullOrWhiteSpace(x.TrackingCode));
+        RuleFor(x => x.DeliveryNote)
+            .MaximumLength(1000).WithMessage("Ghi chú tối đa 1000 ký tự.")
+            .When(x => !string.IsNullOrWhiteSpace(x.DeliveryNote));
     }
 }
 
