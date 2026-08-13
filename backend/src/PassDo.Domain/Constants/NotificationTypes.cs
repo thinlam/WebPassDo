@@ -10,5 +10,6 @@ public static class NotificationTypes
     public const string OrderDelivered = "OrderDelivered";
     public const string OrderCompleted = "OrderCompleted";
     public const string OrderCancelled = "OrderCancelled";
+    public const string OrderRejected = "OrderRejected";
     public const string NewMessage = "NewMessage";
 }
