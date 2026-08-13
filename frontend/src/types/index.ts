@@ -63,6 +63,13 @@ export type OrderStatus =
   | 'Returned'
   | 'Refunded'
 
+export type OrderRejectReason =
+  | 'OutOfStock'
+  | 'SoldElsewhere'
+  | 'CannotDeliver'
+  | 'WrongPrice'
+  | 'Other'
+
 export type HandOverPayload = {
   deliveryPersonName: string
   deliveryPersonPhone: string

@@ -1,4 +1,12 @@
-import type { OrderStatus } from '../types'
+import type { OrderRejectReason, OrderStatus } from '../types'
+
+export const ORDER_REJECT_REASON_LABELS: Record<OrderRejectReason, string> = {
+  OutOfStock: 'Hết hàng',
+  SoldElsewhere: 'Đã bán nơi khác',
+  CannotDeliver: 'Không giao được',
+  WrongPrice: 'Sai giá',
+  Other: 'Khác',
+}
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   AwaitingPayment: 'Chờ thanh toán',
