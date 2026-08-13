@@ -17,7 +17,7 @@ namespace PassDo.Application.Orders.Commands.OrderActions;
 public record ConfirmPaymentCommand(Guid OrderId, string? Note) : IRequest<OrderDetailDto>;
 public record UploadPaymentProofCommand(Guid OrderId, string ProofImageUrl) : IRequest<OrderDetailDto>;
 public record ConfirmOrderCommand(Guid OrderId, string? Note) : IRequest<OrderDetailDto>;
-public record RejectOrderCommand(Guid OrderId, string Reason) : IRequest<OrderDetailDto>;
+public record RejectOrderCommand(Guid OrderId, OrderRejectReason ReasonCode, string? ReasonNote) : IRequest<OrderDetailDto>;
 public record CancelOrderCommand(Guid OrderId, string? Reason) : IRequest<OrderDetailDto>;
 public record MarkPreparedCommand(Guid OrderId) : IRequest<OrderDetailDto>;
 public record HandOverToCourierCommand(
@@ -36,7 +36,15 @@ public record FailDeliveryCommand(Guid OrderId, string Reason) : IRequest<OrderD
 
 public class RejectOrderCommandValidator : AbstractValidator<RejectOrderCommand>
 {
-    public RejectOrderCommandValidator() => RuleFor(x => x.Reason).NotEmpty().MaximumLength(1000);
+    public RejectOrderCommandValidator()
+    {
+        RuleFor(x => x.ReasonCode).IsInEnum();
+        RuleFor(x => x.ReasonNote).MaximumLength(500);
+        RuleFor(x => x.ReasonNote)
+            .Must(note => !string.IsNullOrWhiteSpace(note))
+            .WithMessage("Vui lòng nhập lý do khi chọn 'Khác'.")
+            .When(x => x.ReasonCode == OrderRejectReason.Other);
+    }
 }
 
 public class FailDeliveryCommandValidator : AbstractValidator<FailDeliveryCommand>
@@ -172,7 +180,9 @@ public class OrderActionHandler :
             ct));
 
     public Task<OrderDetailDto> Handle(RejectOrderCommand request, CancellationToken ct)
-        => Transition(request.OrderId, async order =>
+    {
+        var formattedReason = OrderRejectReasonLabels.Format(request.ReasonCode, request.ReasonNote);
+        return Transition(request.OrderId, async order =>
         {
             EnsureSellerOrAdmin(order);
             if (order.Status is not (OrderStatus.PendingSellerConfirmation or OrderStatus.AwaitingPayment))
@@ -182,14 +192,15 @@ public class OrderActionHandler :
 
             await RestoreStock(order, ct);
             order.CancelledAt = _clock.UtcNow;
-            order.CancellationReason = request.Reason;
-            ChangeStatus(order, OrderStatus.Cancelled, request.Reason);
+            order.CancellationReason = formattedReason;
+            ChangeStatus(order, OrderStatus.Cancelled, formattedReason);
         }, ct, afterSave: order => NotifyBuyer(
             order,
-            NotificationTypes.OrderCancelled,
-            "Đơn hàng đã bị hủy",
-            $"Người bán đã từ chối đơn hàng {order.OrderCode} - \"{ProductName(order)}\". Lý do: {request.Reason}",
+            NotificationTypes.OrderRejected,
+            "Đơn hàng bị từ chối",
+            $"Người bán đã từ chối đơn hàng {order.OrderCode} - \"{ProductName(order)}\". Lý do: {formattedReason}",
             ct));
+    }
 
     public Task<OrderDetailDto> Handle(CancelOrderCommand request, CancellationToken ct)
         => Transition(request.OrderId, async order =>

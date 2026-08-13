@@ -99,9 +99,9 @@ public class OrdersController : ControllerBase
     }
 
     [HttpPost("{id:guid}/reject")]
-    public async Task<ActionResult<ApiResponse<object>>> Reject(Guid id, [FromBody] ReasonRequest request)
+    public async Task<ActionResult<ApiResponse<object>>> Reject(Guid id, [FromBody] RejectOrderRequest request)
     {
-        var result = await _mediator.Send(new RejectOrderCommand(id, request.Reason));
+        var result = await _mediator.Send(new RejectOrderCommand(id, request.ReasonCode, request.ReasonNote));
         return Ok(ApiResponse<object>.Ok(result, "Order rejected."));
     }
 
