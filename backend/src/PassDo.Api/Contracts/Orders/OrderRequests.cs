@@ -20,6 +20,7 @@ public record CreateOrderRequest(
 public record UploadPaymentProofRequest(string ProofImageUrl);
 public record NoteRequest(string? Note);
 public record ReasonRequest(string Reason);
+public record RejectOrderRequest(OrderRejectReason ReasonCode, string? ReasonNote);
 
 public record HandOverRequest(
     string DeliveryPersonName,

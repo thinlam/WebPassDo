@@ -21,8 +21,8 @@
 | Frontend | ✅ Nút confirm/reject/prepare trên OrderDetail |
 | Database | ✅ Order + StatusHistory; Reason lưu note/history |
 | API | `POST /api/orders/{id}/confirm`, `/reject`, `/mark-prepared`, `/cancel`, `/hand-over` |
-| Lỗi hiện tại | Lý do từ chối là free-text, chưa enum chuẩn; endpoint tên hơi khác roadmap (`mark-prepared` vs `start-preparing` / `ready-for-shipment`) |
-| Việc tiếp theo | Chuẩn hóa reject reasons + mapping API names nếu cần |
+| Lỗi hiện tại | Endpoint tên hơi khác roadmap (`mark-prepared` vs `start-preparing` / `ready-for-shipment`) — deferred |
+| Việc tiếp theo | Mapping API names nếu cần (deferred) |
 
 ## API roadmap vs hiện tại
 
@@ -38,17 +38,18 @@
 
 - [x] Chỉ chủ sản phẩm (seller) / admin confirm
 - [x] Buyer nhận kết quả qua notification + xem order
-- [x] Lý do từ chối bắt buộc (string)
-- [x] Product về Available khi reject/cancel
+- [x] Lý do từ chối chuẩn hóa (enum `OrderRejectReason` + note khi "Khác")
+- [x] Product về Active khi reject/cancel
 
 ## Cần cập nhật thêm (chuyên nghiệp)
 
-- [ ] Enum lý do từ chối: hết hàng / đã bán nơi khác / không giao được / sai giá / khác
-- [ ] UI select lý do + ô “Khác”
-- [ ] Notification type riêng `OrderRejected` (hiện có thể gộp cancel)
-- [ ] Chặn tạo đơn thứ 2 khi product đang Reserved (unique active order constraint)
-- [ ] Testcase integration cho confirm/reject/prepare
+- [x] Enum lý do từ chối: hết hàng / đã bán nơi khác / không giao được / sai giá / khác (`OrderRejectReason`)
+- [x] UI select lý do + ô "Khác" (bắt buộc note khi chọn Khác)
+- [x] Notification type riêng `OrderRejected` (tách khỏi `OrderCancelled`)
+- [x] Chặn tạo đơn thứ 2 khi product đang Reserved (unique active order constraint — hoàn thành ở PASSDO-03)
+- [x] Unit test coverage cho reject (5 lý do, validator Other, format, regression Cancel vẫn dùng OrderCancelled)
+- [ ] Rename API endpoint theo roadmap (`start-preparing` / `ready-for-shipment`) — deferred, không breaking cần thiết
 
 ## Hoàn thành khi
 
-Chỉ chủ SP confirm; buyer nhận kết quả; lý do lưu; SP về Active khi từ chối — **cốt lõi ✅**, chuẩn hóa lý do còn thiếu.
+Chỉ chủ SP confirm; buyer nhận kết quả; lý do chuẩn hóa (enum + note); SP về Active khi từ chối — **Done**. Còn: rename endpoint theo roadmap (deferred, không ảnh hưởng nghiệp vụ).

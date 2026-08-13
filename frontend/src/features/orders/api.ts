@@ -6,6 +6,7 @@ import type {
   OrderDetail,
   OrderListItem,
   OrderPreview,
+  OrderRejectReason,
   OrderStatus,
   PagedResult,
   PaymentMethod,
@@ -52,8 +53,13 @@ export const ordersApi = {
   confirm: (id: string, note?: string) =>
     unwrap(apiClient.post<ApiResponse<OrderDetail>>(`/orders/${id}/confirm`, { note })),
 
-  reject: (id: string, reason: string) =>
-    unwrap(apiClient.post<ApiResponse<OrderDetail>>(`/orders/${id}/reject`, { reason })),
+  reject: (id: string, payload: { reasonCode: OrderRejectReason; reasonNote?: string }) =>
+    unwrap(
+      apiClient.post<ApiResponse<OrderDetail>>(`/orders/${id}/reject`, {
+        reasonCode: payload.reasonCode,
+        reasonNote: payload.reasonNote,
+      }),
+    ),
 
   cancel: (id: string, reason?: string) =>
     unwrap(apiClient.post<ApiResponse<OrderDetail>>(`/orders/${id}/cancel`, { reason })),

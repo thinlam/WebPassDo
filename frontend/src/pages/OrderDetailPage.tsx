@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useState } from 'react'
 import { ordersApi } from '../features/orders/api'
 import { useAuthStore } from '../stores/authStore'
-import { Badge, Button, EmptyState, Input, Section, Spinner } from '../components/common/ui'
+import { Badge, Button, EmptyState, Input, Section, Select, Spinner } from '../components/common/ui'
 import { getErrorMessage, resolveMediaUrl } from '../utils/api'
 import {
   formatVND,
@@ -14,8 +14,20 @@ import {
   getDeliverySpeedLabel,
   getPaymentMethodLabel,
   getPaymentStatusLabel,
+  ORDER_REJECT_REASON_LABELS,
 } from '../lib/orderStatus'
-import type { HandOverPayload } from '../types'
+import { DELIVERY_COMPANIES, OTHER_DELIVERY_COMPANY } from '../lib/deliveryCompanies'
+import type { HandOverPayload, OrderRejectReason } from '../types'
+
+const emptyHandoverForm: HandOverPayload = {
+  deliveryPersonName: '',
+  deliveryPersonPhone: '',
+  deliveryCompany: '',
+  vehicleNumber: '',
+  trackingCode: '',
+  deliveryNote: '',
+  estimatedDeliveryFrom: '',
+}
 
 export function OrderDetailPage() {
   const { id = '' } = useParams()
@@ -23,6 +35,7 @@ export function OrderDetailPage() {
   const user = useAuthStore((s) => s.user)
   const [error, setError] = useState('')
   const [actionNote, setActionNote] = useState('')
+  const [rejectReasonCode, setRejectReasonCode] = useState<OrderRejectReason>('OutOfStock')
   const [showHandoverModal, setShowHandoverModal] = useState(false)
 
   const query = useQuery({
@@ -37,6 +50,7 @@ export function OrderDetailPage() {
     queryClient.invalidateQueries({ queryKey: ['sales'] })
     setError('')
     setActionNote('')
+    setRejectReasonCode('OutOfStock')
   }
 
   const act = (fn: () => Promise<unknown>) => ({
@@ -47,7 +61,14 @@ export function OrderDetailPage() {
 
   const confirmPaymentM = useMutation(act(() => ordersApi.confirmPayment(id, actionNote || undefined)))
   const confirmM = useMutation(act(() => ordersApi.confirm(id, actionNote || undefined)))
-  const rejectM = useMutation(act(() => ordersApi.reject(id, actionNote || 'Từ chối')))
+  const rejectM = useMutation(
+    act(() =>
+      ordersApi.reject(id, {
+        reasonCode: rejectReasonCode,
+        reasonNote: actionNote || undefined,
+      }),
+    ),
+  )
   const cancelM = useMutation(act(() => ordersApi.cancel(id, actionNote || undefined)))
   const markPreparedM = useMutation(act(() => ordersApi.markPrepared(id)))
   const confirmDeliveredM = useMutation(act(() => ordersApi.confirmDelivered(id)))
@@ -57,33 +78,25 @@ export function OrderDetailPage() {
   const [proofUrl, setProofUrl] = useState('')
   const proofM = useMutation(act(() => ordersApi.paymentProof(id, proofUrl)))
 
-  const [handoverForm, setHandoverForm] = useState<HandOverPayload>({
-    deliveryPersonName: '',
-    deliveryPersonPhone: '',
-    deliveryCompany: '',
-    vehicleNumber: '',
-    trackingCode: '',
-    deliveryNote: '',
-    estimatedDeliveryFrom: '',
-  })
+  const [handoverForm, setHandoverForm] = useState<HandOverPayload>(emptyHandoverForm)
+  const [carrierPreset, setCarrierPreset] = useState('')
+  const [customCompany, setCustomCompany] = useState('')
   const [handoverFieldErrors, setHandoverFieldErrors] = useState<Record<string, string>>({})
   const [handoverError, setHandoverError] = useState('')
+
+  const resetHandoverForm = () => {
+    setHandoverForm(emptyHandoverForm)
+    setCarrierPreset('')
+    setCustomCompany('')
+    setHandoverFieldErrors({})
+    setHandoverError('')
+  }
 
   const handOverM = useMutation({
     mutationFn: (payload: HandOverPayload) => ordersApi.handOver(id, payload),
     onSuccess: () => {
       setShowHandoverModal(false)
-      setHandoverFieldErrors({})
-      setHandoverError('')
-      setHandoverForm({
-        deliveryPersonName: '',
-        deliveryPersonPhone: '',
-        deliveryCompany: '',
-        vehicleNumber: '',
-        trackingCode: '',
-        deliveryNote: '',
-        estimatedDeliveryFrom: '',
-      })
+      resetHandoverForm()
       invalidate()
     },
     onError: (err: unknown) => {
@@ -97,11 +110,15 @@ export function OrderDetailPage() {
     const errors: Record<string, string> = {}
     const name = handoverForm.deliveryPersonName.trim()
     const phone = handoverForm.deliveryPersonPhone.trim()
-    const company = handoverForm.deliveryCompany.trim()
+    const company =
+      carrierPreset === OTHER_DELIVERY_COMPANY
+        ? customCompany.trim()
+        : carrierPreset.trim()
 
     if (!name) errors.deliveryPersonName = 'Vui lòng nhập tên người giao'
     if (!phone) errors.deliveryPersonPhone = 'Vui lòng nhập số điện thoại'
-    if (!company) errors.deliveryCompany = 'Vui lòng nhập đơn vị vận chuyển'
+    if (!carrierPreset) errors.deliveryCompany = 'Vui lòng chọn đơn vị vận chuyển'
+    else if (!company) errors.deliveryCompany = 'Vui lòng nhập đơn vị vận chuyển'
 
     setHandoverFieldErrors(errors)
     setHandoverError('')
@@ -316,6 +333,26 @@ export function OrderDetailPage() {
             onChange={(e) => setActionNote(e.target.value)}
             placeholder="Lý do / ghi chú (nếu cần)"
           />
+          {isSeller && ['AwaitingPayment', 'PendingSellerConfirmation'].includes(o.status) && (
+            <div>
+              <Select
+                label="Lý do từ chối (nếu từ chối đơn)"
+                value={rejectReasonCode}
+                onChange={(e) => setRejectReasonCode(e.target.value as OrderRejectReason)}
+              >
+                {Object.entries(ORDER_REJECT_REASON_LABELS).map(([code, label]) => (
+                  <option key={code} value={code}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+              {rejectReasonCode === 'Other' && (
+                <p className="mt-1 text-xs text-muted">
+                  Vui lòng nhập lý do cụ thể vào ô "Ghi chú hành động" ở trên.
+                </p>
+              )}
+            </div>
+          )}
           <div className="flex flex-wrap gap-2">
             {/* Buyer actions */}
             {isBuyer && o.status === 'AwaitingPayment' && o.paymentMethod === 'BankTransfer' && (
@@ -362,7 +399,11 @@ export function OrderDetailPage() {
                 <Button onClick={() => confirmM.mutate()} disabled={confirmM.isPending}>
                   Xác nhận đơn
                 </Button>
-                <Button variant="danger" onClick={() => rejectM.mutate()} disabled={rejectM.isPending}>
+                <Button
+                  variant="danger"
+                  onClick={() => rejectM.mutate()}
+                  disabled={rejectM.isPending || (rejectReasonCode === 'Other' && !actionNote.trim())}
+                >
                   Từ chối
                 </Button>
               </>
@@ -378,7 +419,11 @@ export function OrderDetailPage() {
               </Button>
             )}
             {isSeller && ['AwaitingPayment', 'PendingSellerConfirmation'].includes(o.status) && (
-              <Button variant="danger" onClick={() => rejectM.mutate()} disabled={rejectM.isPending}>
+              <Button
+                variant="danger"
+                onClick={() => rejectM.mutate()}
+                disabled={rejectM.isPending || (rejectReasonCode === 'Other' && !actionNote.trim())}
+              >
                 Từ chối / Hủy đơn
               </Button>
             )}
@@ -415,13 +460,34 @@ export function OrderDetailPage() {
               error={handoverFieldErrors.deliveryPersonPhone}
               required
             />
-            <Input
+            <Select
               label="Đơn vị vận chuyển *"
-              value={handoverForm.deliveryCompany}
-              onChange={(e) => setHandoverForm((f) => ({ ...f, deliveryCompany: e.target.value }))}
-              error={handoverFieldErrors.deliveryCompany}
+              value={carrierPreset}
+              onChange={(e) => {
+                setCarrierPreset(e.target.value)
+                if (e.target.value !== OTHER_DELIVERY_COMPANY) setCustomCompany('')
+              }}
+              error={carrierPreset === OTHER_DELIVERY_COMPANY ? undefined : handoverFieldErrors.deliveryCompany}
               required
-            />
+            >
+              <option value="">Chọn đơn vị</option>
+              {DELIVERY_COMPANIES.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+              <option value={OTHER_DELIVERY_COMPANY}>Khác</option>
+            </Select>
+            {carrierPreset === OTHER_DELIVERY_COMPANY && (
+              <Input
+                label="Tên đơn vị khác *"
+                value={customCompany}
+                onChange={(e) => setCustomCompany(e.target.value)}
+                error={handoverFieldErrors.deliveryCompany}
+                placeholder="Nhập tên đơn vị vận chuyển"
+                required
+              />
+            )}
             <Input
               label="Biển số xe"
               value={handoverForm.vehicleNumber}
@@ -453,8 +519,7 @@ export function OrderDetailPage() {
                 onClick={() => {
                   if (handOverM.isPending) return
                   setShowHandoverModal(false)
-                  setHandoverError('')
-                  setHandoverFieldErrors({})
+                  resetHandoverForm()
                 }}
               >
                 Hủy
