@@ -143,45 +143,25 @@ Volume mặc định (tên project `webpassdo`):
 
 ### 1) Backup trên máy cũ (PowerShell)
 
+**Khuyến nghị:** chạy script (đợi DB `healthy`, fail nếu `sqlcmd`/`docker cp` lỗi, kiểm tra file thật sự bị ghi đè):
+
 ```powershell
-cd E:\WebPassDo   # hoặc path project của bạn
-
-# Nạp biến từ .env vào session hiện tại
-Get-Content .env | ForEach-Object {
-  if ($_ -match '^\s*#' -or $_ -notmatch '=') { return }
-  $k, $v = $_.Split('=', 2)
-  Set-Item -Path "Env:$k" -Value $v.Trim()
-}
-
-New-Item -ItemType Directory -Force -Path E:\PassDoBackup | Out-Null
-docker compose up -d database
-Start-Sleep 25   # đợi DB healthy
-
-docker exec passdo-database mkdir -p /var/opt/mssql/backup
-
-docker exec passdo-database /opt/mssql-tools18/bin/sqlcmd `
-  -S localhost -U sa -P "$env:MSSQL_SA_PASSWORD" -C `
-  -Q "BACKUP DATABASE [PassDoDb] TO DISK = N'/var/opt/mssql/backup/PassDoDb.bak' WITH INIT"
-
-docker cp passdo-database:/var/opt/mssql/backup/PassDoDb.bak E:\PassDoBackup\PassDoDb.bak
-
-docker run --rm `
-  -v webpassdo_uploads_data:/data `
-  -v E:\PassDoBackup:/backup `
-  alpine tar czf /backup/uploads.tar.gz -C /data .
-
-Copy-Item .env E:\PassDoBackup\.env -Force
-Get-ChildItem E:\PassDoBackup
+cd E:\WebPassDo
+powershell -File scripts\backup-docker.ps1
+# hoặc: powershell -File scripts\backup-docker.ps1 -OutDir E:\PassDoBackup
 ```
+
+Không dùng `Start-Sleep 25` / `docker compose wait`: sleep có thể chưa đủ, `compose wait` đợi container **tắt** nên treo mãi.
 
 **Kiểm tra trước khi mang đi:**
 
-- `PassDoDb.bak` phải khoảng **vài MB trở lên** (ví dụ ~8 MB). Không có file / lỗi `Could not find ...bak` = backup thất bại.
-- `uploads.tar.gz` ~**85 bytes** = volume ảnh trống (OK nếu chưa upload ảnh). Có ảnh thì file sẽ lớn hơn rõ.
-- Container DB phải **Running** trước khi backup (`docker compose up -d database`).
-- Password lấy từ `.env` (`MSSQL_SA_PASSWORD`); đừng dựa vào `$env:...` nếu chưa nạp `.env`.
+- `PassDoDb.bak` `LastWriteTime` phải là **lúc vừa backup**. Timestamp cũ = lệnh fail, file cũ không bị ghi đè.
+- `PassDoDb.bak` phải **vài MB trở lên**. Không có file / lỗi `Could not find ...bak` = backup thất bại.
+- `uploads.tar.gz` ~**85 bytes** = volume ảnh trống. Có ảnh thì phải lớn hơn rõ (KB/MB).
+- Container DB phải **healthy** (`docker inspect -f "{{.State.Health.Status}}" passdo-database` → `healthy`).
+- Password lấy từ `.env` (`MSSQL_SA_PASSWORD`).
 
-Image SQL 2022 hiện tại chỉ có **`/opt/mssql-tools18/bin/sqlcmd`** (kèm flag `-C`). Đường `/opt/mssql-tools/bin/sqlcmd` thường **không tồn tại** — nếu thấy lỗi `no such file or directory` thì đang gọi nhầm path cũ.
+Image SQL 2022 hiện tại chỉ có **`/opt/mssql-tools18/bin/sqlcmd`** (kèm flag `-C`). Đường `/opt/mssql-tools/bin/sqlcmd` thường **không tồn tại**.
 
 Tên volume uploads nếu khác: `docker volume ls | findstr uploads`.
 
@@ -205,7 +185,11 @@ Get-Content .env | ForEach-Object {
 # docker compose down -v
 
 docker compose up -d database
-Start-Sleep 30
+do {
+  $h = docker inspect -f "{{.State.Health.Status}}" passdo-database 2>$null
+  if ($h -eq "healthy") { break }
+  Start-Sleep 3
+} while ($true)
 
 docker exec passdo-database mkdir -p /var/opt/mssql/backup
 docker cp <path>\PassDoBackup\PassDoDb.bak passdo-database:/var/opt/mssql/backup/PassDoDb.bak
@@ -220,7 +204,7 @@ Start-Sleep 15
 
 docker run --rm `
   -v webpassdo_uploads_data:/data `
-  -v <path>\PassDoBackup:/backup `
+  -v E:/PassDoBackup:/backup `
   alpine sh -c "tar xzf /backup/uploads.tar.gz -C /data"
 
 docker compose up --build -d
@@ -268,22 +252,7 @@ $stamp = Get-Date -Format "yyyy-MM-dd"
 $bakDir = "D:\PassDoBackup\$stamp"
 New-Item -ItemType Directory -Force -Path $bakDir | Out-Null
 
-docker compose up -d database
-Start-Sleep 25
-docker exec passdo-database mkdir -p /var/opt/mssql/backup
-
-docker exec passdo-database /opt/mssql-tools18/bin/sqlcmd `
-  -S localhost -U sa -P "$env:MSSQL_SA_PASSWORD" -C `
-  -Q "BACKUP DATABASE [PassDoDb] TO DISK = N'/var/opt/mssql/backup/PassDoDb.bak' WITH INIT"
-
-docker cp passdo-database:/var/opt/mssql/backup/PassDoDb.bak "$bakDir\PassDoDb.bak"
-
-docker run --rm `
-  -v webpassdo_uploads_data:/data `
-  -v ${bakDir}:/backup `
-  alpine tar czf /backup/uploads.tar.gz -C /data .
-
-Copy-Item .env "$bakDir\.env" -Force
+powershell -File scripts\backup-docker.ps1 -OutDir $bakDir
 Get-ChildItem $bakDir
 ```
 
@@ -319,7 +288,11 @@ Get-Content .env | ForEach-Object {
 # docker compose down -v
 
 docker compose up -d database
-Start-Sleep 30
+do {
+  $h = docker inspect -f "{{.State.Health.Status}}" passdo-database 2>$null
+  if ($h -eq "healthy") { break }
+  Start-Sleep 3
+} while ($true)
 
 docker exec passdo-database mkdir -p /var/opt/mssql/backup
 docker cp "$bakDir\PassDoDb.bak" passdo-database:/var/opt/mssql/backup/PassDoDb.bak
